@@ -5,7 +5,7 @@
 #define CM_ORDER_NONE         -1
 #define CM_ORDER_STOP          0
 #define CM_ORDER_HOW_MANY     10
-#define CM_ORDER_MINIMUM      20
+#define CM_ORDER_MINIMUM      2
 #define CM_ORDER_MAXIMUM      30
 #define CM_ORDER_EXIST        40
 #define CM_ORDER_SUM          50
