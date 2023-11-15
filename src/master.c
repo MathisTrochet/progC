@@ -15,6 +15,8 @@
 #include "client_master.h"
 #include "master_worker.h"
 
+#include <pthread.h>
+
 /************************************************************************
  * Données persistantes d'un master
  ************************************************************************/
@@ -303,7 +305,12 @@ int main(int argc, char * argv[])
 
     //TODO
     // - création des sémaphores
+
+    pthread_mutex_t *mutex;
+
     // - création des tubes nommés
+    pid_t tube1;
+
     //END TODO
 
     loop(&data);

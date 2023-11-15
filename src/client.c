@@ -16,6 +16,8 @@
 
 #include "client_master.h"
 
+#include <pthread.h>
+
 
 /************************************************************************
  * chaines possibles pour le premier paramètre de la ligne de commande
@@ -192,6 +194,9 @@ static void parseArgs(int argc, char * argv[], Data *data)
 // A vous de voir les paramètres nécessaires  (aucune variable globale autorisée)
 //END TODO
 
+void Thread(Data *data){
+}
+
 void lauchThreads(const Data *data)
 {
     //TODO déclarations nécessaires : mutex, ...
@@ -275,6 +280,9 @@ int main(int argc, char * argv[])
     {
         //TODO
         // - entrer en section critique :
+        
+        //pthread_mutex_lock(&mutex);
+        
         //       . pour empêcher que 2 clients communiquent simultanément
         //       . le mutex est déjà créé par le master
         // - ouvrir les tubes nommés (ils sont déjà créés par le master)
