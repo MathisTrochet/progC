@@ -248,23 +248,18 @@ void lauchThreads(const Data *data)
 // envoi des données au master
 void sendData(const Data *data)
 {
-    myassert(data != NULL, "pb !");   //TODO à enlever (présent pour éviter le warning)
-
-    //TODO
-
-    //int tubeClientMaster = data->tubeClient;
+    //myassert(data != NULL, "pb !");   //TODO à enlever (présent pour éviter le warning)
 
     
     int tubeClientMaster = open("tubeC", O_WRONLY);
-    //close(tubeClientMaster[1]);
-
-    //int order = data->order;
-    int order = 5;
-    int ret = write(tubeClientMaster, &order, sizeof(int));
-    //assert (ret !=1);
-
 
     // - envoi de l'ordre au master (cf. CM_ORDER_* dans client_master.h)
+    int order = data->order;
+    int ret = write(tubeClientMaster, &order, sizeof(int));
+    assert (ret !=1);
+
+
+    
     // - envoi des paramètres supplémentaires au master (pour CM_ORDER_EXIST,
     //   CM_ORDER_INSERT et CM_ORDER_INSERT_MANY)
     //END TODO
@@ -290,6 +285,7 @@ void receiveAnswer(const Data *data)
 int main(int argc, char * argv[])
 {
     Data data;
+    DataMiddle tubeMiddle;
     parseArgs(argc, argv, &data);
 
     if (data.order == CM_ORDER_LOCAL)
@@ -305,27 +301,28 @@ int main(int argc, char * argv[])
         pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
         
         pthread_mutex_lock(&mutex);
-
-        
         
 
         //ret = write(tubetest, &dataa, sizeof(int));
         //assert(ret != -1);
         // 2 semget doivent être fait ici   
         //le 2eme init a 1, on fait semop a -1 
+
+        
 /*
         int sem = semget(MA_CLE, 1, 0); 
-        
+
         ret = semctl(sem, 0, SETVAL, 0);
-        assert(ret != -1);
+        //assert(ret != -1);
         struct sembuf operation = {0, +1, 0};
         ret = semop(sem, &operation, 1);
-        assert(ret != -1);
+        //assert(ret != -1);
 */
         
         //       . pour empêcher que 2 clients communiquent simultanément
         //       . le mutex est déjà créé par le master
         // - ouvrir les tubes nommés (ils sont déjà créés par le master)
+
 
         //int tubetest = open("tubeC", O_WRONLY);
         //data.tubeClient = tubetest;

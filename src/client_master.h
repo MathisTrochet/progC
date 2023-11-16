@@ -32,6 +32,9 @@
 // Vous pouvez mettre ici des informations soit communes au client et au
 // master, soit liées aux deux :
 // . structures de données
+typedef struct {
+    int tube;
+} DataMiddle; //je pense qu'on peut en avoir besoin plus tard
 
 // . création/libération/initialisation de ressources (sémaphores, tubes, ...)
 #define MA_CLE 78624

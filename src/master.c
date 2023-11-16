@@ -28,6 +28,7 @@
 typedef struct
 {
     // communication avec le client
+    int tubeMasterClient;
     
     // données internes
     // communication avec le premier worker (double tubes)
@@ -244,22 +245,29 @@ void loop(Data *data)
 
     init(data);
 
-    while (! end)
+    while (!end)
     {
+
+        DataMiddle tubeMiddle;
         //TODO ouverture des tubes avec le client (cf. explications dans client.c)
-        //int tubeClientMaster = open('tubeC', O_RDONLY);
         //assert(tubeClientMaster != -1);
-        //int order;
-        //int ret = read(tubeClientMaster, &order, sizeof(int));
+        //int tubeClientMaster = open('tubeC', O_RDONLY);
+        int order;
+        int tubeMC = open("tubeC", O_RDONLY);
+     
+        tubeMiddle.tube = tubeMC;
+
+        int ret = read(tubeMC, &order, sizeof(int));
         //if (ret == -1) {
         //perror("Erreur lors de la lecture du tube");  
         // Autres actions à effectuer en cas d'erreur...
         //}
+        printf("yo");
+        printf("%d", order);
         
-        //printf("%d", order); 
         //probleme : order est d'environ 32700 alors qu'il devrait etre 0 si l'appelle avec l'arg stop 
         
-        int order = CM_ORDER_STOP; //TODO pour que ça ne boucle pas, mais recevoir l'ordre du client
+        //order = CM_ORDER_STOP; //TODO pour que ça ne boucle pas, mais recevoir l'ordre du client
 
         //assert(ret != -1);
         switch(order)
@@ -299,12 +307,19 @@ void loop(Data *data)
         }
 
         //TODO fermer les tubes nommés
-        //ret = close(tubeClientMaster);
+        ret = close(tubeMC);
+        
         //assert(ret == 0);
 
         //     il est important d'ouvrir et fermer les tubes nommés à chaque itération
         //     voyez-vous pourquoi ?
         //TODO attendre ordre du client avant de continuer (sémaphore pour une précédence)
+
+        //Reponse :
+        //En fermant le tube à la fin de chaque itération, 
+        //on libere la file d'attente associée au tube nommé, 
+        //cela permet de garantir que chaque iteration commence avec 
+        //un tube vide (sans données non lues de l'itération précédente).
 
         TRACE0("[master] fin ordre\n");
     }
@@ -326,32 +341,34 @@ int main(int argc, char * argv[])
     TRACE0("[master] début\n");
 
     Data data;
+    
+
 
     //TODO
     // - création des sémaphores
 
-    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
+    //pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
     int ret, rec;
 
-/*
-    //int tubeC = mkfifo("tubeC", 0644); 
-    //assert(tubeC == 0);
 
+    
+
+    // ici, un semaphore pour attendre la valeur envoyé par le client (une fois envoyée, le client met le sempahore à +1 )
     int sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
     //assert(sem != -1);
 
     ret = semctl(sem, 0, SETVAL, 0);
     //assert(ret != -1);
 
-    struct sembuf operation = {0, -1, 0};
+    struct sembuf operation = {0, -1, 0}; 
     ret = semop(sem, &operation, 1);
     //assert(ret != -1);
-*/
-      int tube1 = open("tubeC", O_RDONLY);
+
+    
     //assert(tube1 != -1);
 
-      ret = read(tube1, &rec, sizeof(int));
-      printf("%d", rec);
+      //ret = read(tube1, &rec, sizeof(int));
+      //printf("%d", rec);
     //assert(rec != -1);
 
     //printf("%d", rec);
@@ -364,16 +381,18 @@ int main(int argc, char * argv[])
     // - création des tubes nommés
     
 
-    
+    int tubeC = mkfifo("tubeC", 0644); 
+    assert(tubeC != 1);
 
     //END TODO
 
     loop(&data);
     
     //TODO destruction des tubes nommés, des sémaphores, ...
-      close(tube1);
+      //close(tube1);
 
-    //unlink(tubeC);
+    ret = unlink(tubeC);
+    assert(ret != 1);
     //unlink("tube2");
 
     TRACE0("[master] terminaison\n");

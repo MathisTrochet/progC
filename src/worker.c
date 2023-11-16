@@ -73,7 +73,7 @@ void stopAction(Data *data)
 
     //TODO
 
-    fprintf(stdout, "it worked"); // seulement pour tester
+    printf("it worked"); // seulement pour tester
 
     // - traiter les cas où les fils n'existent pas
     // - envoyer au worker gauche ordre de fin (cf. master_worker.h)
