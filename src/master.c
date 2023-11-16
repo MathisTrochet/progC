@@ -11,11 +11,16 @@
 
 #include "utils.h"
 #include "myassert.h"
+#include "assert.h" //rajouté  
 
 #include "client_master.h"
 #include "master_worker.h"
 
-#include <pthread.h>
+#include <fcntl.h>//  rajouté
+#include <pthread.h> // rajouté
+#include <sys/ipc.h> // ajouté 
+#include <sys/sem.h> // ajouté 
+
 
 /************************************************************************
  * Données persistantes d'un master
@@ -23,9 +28,11 @@
 typedef struct
 {
     // communication avec le client
+    
     // données internes
     // communication avec le premier worker (double tubes)
     // communication en provenance de tous les workers (un seul tube en lecture)
+
     //TODO
     int dummy;  //TODO à enlever (présent pour éviter le warning)
 } Data;
@@ -49,6 +56,7 @@ static void usage(const char *exeName, const char *message)
 void init(Data *data)
 {
     myassert(data != NULL, "il faut l'environnement d'exécution");
+    
 
     //TODO initialisation data
 }
@@ -239,8 +247,21 @@ void loop(Data *data)
     while (! end)
     {
         //TODO ouverture des tubes avec le client (cf. explications dans client.c)
+        //int tubeClientMaster = open('tubeC', O_RDONLY);
+        //assert(tubeClientMaster != -1);
+        //int order;
+        //int ret = read(tubeClientMaster, &order, sizeof(int));
+        //if (ret == -1) {
+        //perror("Erreur lors de la lecture du tube");  
+        // Autres actions à effectuer en cas d'erreur...
+        //}
+        
+        //printf("%d", order); 
+        //probleme : order est d'environ 32700 alors qu'il devrait etre 0 si l'appelle avec l'arg stop 
+        
+        int order = CM_ORDER_STOP; //TODO pour que ça ne boucle pas, mais recevoir l'ordre du client
 
-        int order = CM_ORDER_STOP;   //TODO pour que ça ne boucle pas, mais recevoir l'ordre du client
+        //assert(ret != -1);
         switch(order)
         {
           case CM_ORDER_STOP:
@@ -262,7 +283,7 @@ void loop(Data *data)
           case CM_ORDER_SUM:
             orderSum(data);
             break;
-          case CM_ORDER_INSERT:
+          case CM_ORDER_INSERT: 
             orderInsert(data);
             break;
           case CM_ORDER_INSERT_MANY:
@@ -278,6 +299,9 @@ void loop(Data *data)
         }
 
         //TODO fermer les tubes nommés
+        //ret = close(tubeClientMaster);
+        //assert(ret == 0);
+
         //     il est important d'ouvrir et fermer les tubes nommés à chaque itération
         //     voyez-vous pourquoi ?
         //TODO attendre ordre du client avant de continuer (sémaphore pour une précédence)
@@ -292,7 +316,7 @@ void loop(Data *data)
  ************************************************************************/
 
 //TODO N'hésitez pas à faire des fonctions annexes ; si les fonctions main
-//TODO et loop pouvaient être "courtes", ce serait bien
+//TODO et loop pouvaient être "courtes", ce serait bien 
 
 int main(int argc, char * argv[])
 {
@@ -306,16 +330,51 @@ int main(int argc, char * argv[])
     //TODO
     // - création des sémaphores
 
-    pthread_mutex_t *mutex;
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
+    int ret, rec;
+
+/*
+    //int tubeC = mkfifo("tubeC", 0644); 
+    //assert(tubeC == 0);
+
+    int sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
+    //assert(sem != -1);
+
+    ret = semctl(sem, 0, SETVAL, 0);
+    //assert(ret != -1);
+
+    struct sembuf operation = {0, -1, 0};
+    ret = semop(sem, &operation, 1);
+    //assert(ret != -1);
+*/
+      int tube1 = open("tubeC", O_RDONLY);
+    //assert(tube1 != -1);
+
+      ret = read(tube1, &rec, sizeof(int));
+      printf("%d", rec);
+    //assert(rec != -1);
+
+    //printf("%d", rec);
+
+    
+    
+
+    //assert(ret != -1);
 
     // - création des tubes nommés
-    pid_t tube1;
+    
+
+    
 
     //END TODO
 
     loop(&data);
-
+    
     //TODO destruction des tubes nommés, des sémaphores, ...
+      close(tube1);
+
+    //unlink(tubeC);
+    //unlink("tube2");
 
     TRACE0("[master] terminaison\n");
     return EXIT_SUCCESS;

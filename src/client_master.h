@@ -32,7 +32,10 @@
 // Vous pouvez mettre ici des informations soit communes au client et au
 // master, soit liées aux deux :
 // . structures de données
+
 // . création/libération/initialisation de ressources (sémaphores, tubes, ...)
+#define MA_CLE 78624
+
 // . communications
 //END TODO
 

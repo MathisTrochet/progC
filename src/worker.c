@@ -72,6 +72,9 @@ void stopAction(Data *data)
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
+
+    fprintf(stdout, "it worked"); // seulement pour tester
+
     // - traiter les cas où les fils n'existent pas
     // - envoyer au worker gauche ordre de fin (cf. master_worker.h)
     // - envoyer au worker droit ordre de fin (cf. master_worker.h)
