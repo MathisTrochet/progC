@@ -341,19 +341,13 @@ int main(int argc, char * argv[])
     TRACE0("[master] début\n");
 
     Data data;
-    
-
+    int ret, rec;
 
     //TODO
     // - création des sémaphores
-
-    //pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
-    int ret, rec;
-
-
     
 
-    // ici, un semaphore pour attendre la valeur envoyé par le client (une fois envoyée, le client met le sempahore à +1 )
+/*
     int sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
     //assert(sem != -1);
 
@@ -363,20 +357,7 @@ int main(int argc, char * argv[])
     struct sembuf operation = {0, -1, 0}; 
     ret = semop(sem, &operation, 1);
     //assert(ret != -1);
-
-    
-    //assert(tube1 != -1);
-
-      //ret = read(tube1, &rec, sizeof(int));
-      //printf("%d", rec);
-    //assert(rec != -1);
-
-    //printf("%d", rec);
-
-    
-    
-
-    //assert(ret != -1);
+*/
 
     // - création des tubes nommés
     
@@ -389,11 +370,9 @@ int main(int argc, char * argv[])
     loop(&data);
     
     //TODO destruction des tubes nommés, des sémaphores, ...
-      //close(tube1);
 
     ret = unlink(tubeC);
     assert(ret != 1);
-    //unlink("tube2");
 
     TRACE0("[master] terminaison\n");
     return EXIT_SUCCESS;

@@ -247,12 +247,9 @@ void lauchThreads(const Data *data)
  ************************************************************************/
 // envoi des données au master
 void sendData(const Data *data)
-{
-    //myassert(data != NULL, "pb !");   //TODO à enlever (présent pour éviter le warning)
+{    
 
-    
-    int tubeClientMaster = open("tubeC", O_WRONLY);
-
+    int tubeClientMaster = data->tubeClient;
     // - envoi de l'ordre au master (cf. CM_ORDER_* dans client_master.h)
     int order = data->order;
     int ret = write(tubeClientMaster, &order, sizeof(int));
@@ -303,8 +300,7 @@ int main(int argc, char * argv[])
         pthread_mutex_lock(&mutex);
         
 
-        //ret = write(tubetest, &dataa, sizeof(int));
-        //assert(ret != -1);
+        
         // 2 semget doivent être fait ici   
         //le 2eme init a 1, on fait semop a -1 
 
@@ -324,8 +320,9 @@ int main(int argc, char * argv[])
         // - ouvrir les tubes nommés (ils sont déjà créés par le master)
 
 
-        //int tubetest = open("tubeC", O_WRONLY);
-        //data.tubeClient = tubetest;
+        int tubeClientMaster = open("tubeC", O_WRONLY);
+        assert(tubeClientMaster !=1);
+        data.tubeClient = tubeClientMaster;
 
         //       . les ouvertures sont bloquantes, il faut s'assurer que
         //         le master ouvre les tubes dans le même ordre
@@ -338,6 +335,9 @@ int main(int argc, char * argv[])
         // - sortir de la section critique
         pthread_mutex_unlock(&mutex);
         // - libérer les ressources (fermeture des tubes, ...)
+        ret = close("tubeC");
+        assert(ret!=1);
+
 
         //close(tubetest);
 
