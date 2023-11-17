@@ -28,7 +28,8 @@
 typedef struct
 {
     // communication avec le client
-    int tubeMasterClient;
+    int tubeMC;
+    int sem;
     
     // données internes
     // communication avec le premier worker (double tubes)
@@ -72,10 +73,16 @@ void orderStop(Data *data)
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
+
     // - traiter le cas ensemble vide (pas de premier worker)
     // - envoyer au premier worker ordre de fin (cf. master_worker.h)
     // - attendre sa fin
     // - envoyer l'accusé de réception au client (cf. client_master.h)
+    printf("le programme passe par orderStop");
+    int tubeMasterClient = data->tubeMC;
+    int order = CM_ANSWER_STOP_OK;
+    int ret = write(tubeMasterClient, &order, sizeof(int));
+    
     //END TODO
 }
 
@@ -248,26 +255,23 @@ void loop(Data *data)
     while (!end)
     {
 
-        DataMiddle tubeMiddle;
+        //DataMiddle tubeMiddle;
         //TODO ouverture des tubes avec le client (cf. explications dans client.c)
-        //assert(tubeClientMaster != -1);
-        //int tubeClientMaster = open('tubeC', O_RDONLY);
         int order;
-        int tubeMC = open("tubeC", O_RDONLY);
+        int tubeClientMaster = open("tubeCM", O_RDONLY);
+        int tubeMasterClient = open("tubeMC", O_WRONLY);
+        
      
-        tubeMiddle.tube = tubeMC;
+        (*data).tubeMC = tubeMasterClient;
 
-        int ret = read(tubeMC, &order, sizeof(int));
-        //if (ret == -1) {
-        //perror("Erreur lors de la lecture du tube");  
-        // Autres actions à effectuer en cas d'erreur...
-        //}
-        printf("yo");
-        printf("%d", order);
-        
-        //probleme : order est d'environ 32700 alors qu'il devrait etre 0 si l'appelle avec l'arg stop 
-        
-        //order = CM_ORDER_STOP; //TODO pour que ça ne boucle pas, mais recevoir l'ordre du client
+        int ret = read(tubeClientMaster, &order, sizeof(int));
+        if (ret == -1) {
+        perror("Erreur lors de la lecture du tube");  
+        //Autres actions à effectuer en cas d'erreur...
+        }
+        printf("ordre int: ");
+        printf("%d\n", order);
+          
 
         //assert(ret != -1);
         switch(order)
@@ -307,13 +311,22 @@ void loop(Data *data)
         }
 
         //TODO fermer les tubes nommés
-        ret = close(tubeMC);
-        
-        //assert(ret == 0);
+        ret = close(tubeClientMaster);
+        assert(ret != 1);
+
+        ret = close(tubeMasterClient);
+        assert(ret != 1);
 
         //     il est important d'ouvrir et fermer les tubes nommés à chaque itération
         //     voyez-vous pourquoi ?
         //TODO attendre ordre du client avant de continuer (sémaphore pour une précédence)
+
+
+        int sem = data->sem;
+
+        struct sembuf operation = {0, -1, 0}; 
+        ret = semop(sem, &operation, 1);
+        //assert(ret != -1);
 
         //Reponse :
         //En fermant le tube à la fin de chaque itération, 
@@ -347,23 +360,20 @@ int main(int argc, char * argv[])
     // - création des sémaphores
     
 
-/*
+
     int sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
     //assert(sem != -1);
-
     ret = semctl(sem, 0, SETVAL, 0);
     //assert(ret != -1);
-
-    struct sembuf operation = {0, -1, 0}; 
-    ret = semop(sem, &operation, 1);
-    //assert(ret != -1);
-*/
+    data.sem = sem;
 
     // - création des tubes nommés
     
+    int tubeClientMaster = mkfifo("tubeCM", 0644); 
+    assert(tubeClientMaster != 1);
 
-    int tubeC = mkfifo("tubeC", 0644); 
-    assert(tubeC != 1);
+    int tubeMasterClient = mkfifo("tubeMC", 0644); 
+    assert(tubeMasterClient != 1);
 
     //END TODO
 
@@ -371,7 +381,9 @@ int main(int argc, char * argv[])
     
     //TODO destruction des tubes nommés, des sémaphores, ...
 
-    ret = unlink(tubeC);
+    ret = unlink(tubeClientMaster);
+    assert(ret != 1);
+    ret = unlink(tubeMasterClient);
     assert(ret != 1);
 
     TRACE0("[master] terminaison\n");

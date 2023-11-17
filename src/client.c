@@ -47,7 +47,10 @@
  ************************************************************************/
 typedef struct {
     // communication avec le master
-    int tubeClient;
+    int tubeCM;
+    int tubeMC;
+    int orderReturn;
+    int sem;
     //TODO
     // infos pour le travail à faire (récupérées sur la ligne de commande)
     int order;     // ordre de l'utilisateur (cf. CM_ORDER_* dans client_master.h)
@@ -249,7 +252,7 @@ void lauchThreads(const Data *data)
 void sendData(const Data *data)
 {    
 
-    int tubeClientMaster = data->tubeClient;
+    int tubeClientMaster = data->tubeCM;
     // - envoi de l'ordre au master (cf. CM_ORDER_* dans client_master.h)
     int order = data->order;
     int ret = write(tubeClientMaster, &order, sizeof(int));
@@ -265,13 +268,27 @@ void sendData(const Data *data)
 // attente de la réponse du master
 void receiveAnswer(const Data *data)
 {
-    myassert(data != NULL, "pb !");   //TODO à enlever (présent pour éviter le warning)
+
+    int tubeMasterClient = data->tubeMC;
 
     //TODO
     // - récupération de l'accusé de réception du master (cf. CM_ANSWER_* dans client_master.h)
+    int order;
+    int ret = read(tubeMasterClient, &order, sizeof(int));
+
+    
+    //assert(ret != -1);
+    int sem = data->sem;
+    struct sembuf operation = {0, +1, 0};
+    ret = semop(sem, &operation, 1);
+    //assert(ret != -1);
+
+
+    
     // - selon l'ordre et l'accusé de réception :
     //      . récupération de données supplémentaires du master si nécessaire
     // - affichage du résultat
+    printf("[CLIENT] accusé de reception : %d", order);
     //END TODO
 }
 
@@ -298,11 +315,11 @@ int main(int argc, char * argv[])
         pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
         
         pthread_mutex_lock(&mutex);
-        
 
-        
-        // 2 semget doivent être fait ici   
-        //le 2eme init a 1, on fait semop a -1 
+        int sem = semget(MA_CLE, 1, 0); 
+
+        ret = semctl(sem, 0, SETVAL, 0);
+        data.sem = sem;
 
         
 /*
@@ -320,26 +337,31 @@ int main(int argc, char * argv[])
         // - ouvrir les tubes nommés (ils sont déjà créés par le master)
 
 
-        int tubeClientMaster = open("tubeC", O_WRONLY);
+        int tubeClientMaster = open("tubeCM", O_WRONLY);
         assert(tubeClientMaster !=1);
-        data.tubeClient = tubeClientMaster;
+
+        int tubeMasterClient = open("tubeMC", O_RDONLY);
+        assert(tubeMasterClient !=1);
+
+        data.tubeCM = tubeClientMaster;
+        data.tubeMC = tubeMasterClient;
 
         //       . les ouvertures sont bloquantes, il faut s'assurer que
         //         le master ouvre les tubes dans le même ordre
         //END TODO
 
         sendData(&data);
-        //receiveAnswer(&data);
+        receiveAnswer(&data);
 
         //TODO
         // - sortir de la section critique
         pthread_mutex_unlock(&mutex);
         // - libérer les ressources (fermeture des tubes, ...)
-        ret = close("tubeC");
+        ret = close("tubeCM");
+        ret = close("tubeMC");
         assert(ret!=1);
 
 
-        //close(tubetest);
 
         // - débloquer le master grâce à un second sémaphore (cf. ci-dessous)
         //
