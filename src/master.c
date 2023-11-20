@@ -36,7 +36,6 @@ typedef struct
     // communication en provenance de tous les workers (un seul tube en lecture)
 
     //TODO
-    int dummy;  //TODO à enlever (présent pour éviter le warning)
 } Data;
 
 
