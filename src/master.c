@@ -28,6 +28,7 @@
 typedef struct
 {
     // communication avec le client
+    int tubeCM;
     int tubeMC;
     int sem;
     int tubeMW;
@@ -58,6 +59,12 @@ static void usage(const char *exeName, const char *message)
 void init(Data *data)
 {
     myassert(data != NULL, "il faut l'environnement d'exécution");
+  
+    (*data).tubeCM = mkfifo("tubeCM", 0644);
+    myassert(data->tubeCM == 0, "Création du tube");
+
+    (*data).tubeMC = mkfifo("tubeMC", 0644);
+    myassert(data->tubeMC == 0, "Création du tube");
     
 
     //TODO initialisation data
@@ -419,13 +426,18 @@ int main(int argc, char * argv[])
     Data data;
     //DataMiddle dataMiddle;
     int ret;
+    key_t key;
+    int semId;
+
+    key = ftok(MON_FICHIER, PROJ_ID);
 
     //TODO
     // - création des sémaphores
+    int key = ftok("client_master.h", MA_CLE)
     int sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
-    assert(sem != -1);
+    myassert(sem != -1, "erreur sem");
     ret = semctl(sem, 0, SETVAL, 0);
-    assert(ret != -1);
+    myassert(sem != -1, "erreur sem");
     data.sem = sem; // facultatif si on fait le sem op en dessous
     
 
@@ -439,6 +451,7 @@ int main(int argc, char * argv[])
     
 
     // - création des tubes nommés
+    
     
     int tubeClientMaster = mkfifo("tubeCM", 0644); 
     assert(tubeClientMaster != 1);

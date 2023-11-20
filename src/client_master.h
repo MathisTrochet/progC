@@ -43,7 +43,9 @@ typedef struct {
 
 
 // . création/libération/initialisation de ressources (sémaphores, tubes, ...)
-#define MA_CLE 78624
+#define MA_CLE 23  
+#define MON_FICHIER client_master.h
+
 
 
 // . communications

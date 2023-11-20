@@ -312,7 +312,7 @@ int main(int argc, char * argv[])
         pthread_mutex_t mutex = dataMiddle.mutexMiddle;
         pthread_mutex_lock(&mutex);
 
-        int sem = semget(MA_CLE, 1, 0); 
+        int sem = semget(MA_CLE, 1, 0);
 
         ret = semctl(sem, 0, SETVAL, 0);
         //data.sem = sem;
