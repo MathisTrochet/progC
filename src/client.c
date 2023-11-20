@@ -275,12 +275,10 @@ void receiveAnswer(const Data *data)
     // - récupération de l'accusé de réception du master (cf. CM_ANSWER_* dans client_master.h)
     int order;
     int ret = read(tubeMasterClient, &order, sizeof(int));
-
     
     //assert(ret != -1);
     int sem = data->sem;
-    struct sembuf operation = {0, +1, 0};
-    ret = semop(sem, &operation, 1);
+    
     //assert(ret != -1);
 
 
@@ -288,7 +286,7 @@ void receiveAnswer(const Data *data)
     // - selon l'ordre et l'accusé de réception :
     //      . récupération de données supplémentaires du master si nécessaire
     // - affichage du résultat
-    printf("[CLIENT] accusé de reception : %d", order);
+    printf("[CLIENT] accusé de reception : %d \n", order);
     //END TODO
 }
 
@@ -299,7 +297,7 @@ void receiveAnswer(const Data *data)
 int main(int argc, char * argv[])
 {
     Data data;
-    DataMiddle tubeMiddle;
+    DataMiddle dataMiddle;
     parseArgs(argc, argv, &data);
 
     if (data.order == CM_ORDER_LOCAL)
@@ -309,17 +307,16 @@ int main(int argc, char * argv[])
 
         int ret;
         //TODO
-        // - entrer en section critique :
-
-        //extern pthread_mutex_t mutex;
-        pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+        // - entrer en section critique 
         
+        pthread_mutex_t mutex = dataMiddle.mutexMiddle;
         pthread_mutex_lock(&mutex);
 
         int sem = semget(MA_CLE, 1, 0); 
 
         ret = semctl(sem, 0, SETVAL, 0);
-        data.sem = sem;
+        //data.sem = sem;
+
 
         
 /*
@@ -351,6 +348,7 @@ int main(int argc, char * argv[])
         //END TODO
 
         sendData(&data);
+        
         receiveAnswer(&data);
 
         //TODO
@@ -364,6 +362,8 @@ int main(int argc, char * argv[])
 
 
         // - débloquer le master grâce à un second sémaphore (cf. ci-dessous)
+        struct sembuf operation = {0, +1, 0};
+        ret = semop(sem, &operation, 1);
         //
         // Une fois que le master a envoyé la réponse au client, il se bloque
         // sur un sémaphore ; le dernier point permet donc au master de continuer

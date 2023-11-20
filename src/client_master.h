@@ -31,13 +31,20 @@
 //TODO
 // Vous pouvez mettre ici des informations soit communes au client et au
 // master, soit liées aux deux :
+
+#include <pthread.h> // rajouté
+
 // . structures de données
 typedef struct {
     int tube;
+    pthread_mutex_t mutexMiddle;
 } DataMiddle; //je pense qu'on peut en avoir besoin plus tard
+
+
 
 // . création/libération/initialisation de ressources (sémaphores, tubes, ...)
 #define MA_CLE 78624
+
 
 // . communications
 //END TODO

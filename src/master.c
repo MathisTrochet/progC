@@ -30,13 +30,13 @@ typedef struct
     // communication avec le client
     int tubeMC;
     int sem;
+    int tubeMW;
     
     // données internes
+    
     // communication avec le premier worker (double tubes)
     // communication en provenance de tous les workers (un seul tube en lecture)
 
-    //TODO
-    int dummy;  //TODO à enlever (présent pour éviter le warning)
 } Data;
 
 
@@ -73,15 +73,26 @@ void orderStop(Data *data)
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
+    int *fds[2];
+
+    int order = CM_ANSWER_STOP_OK;
+
+    int ret = write(fds[1], order, sizeof(int));
+    assert(ret != 1);
+     
 
     // - traiter le cas ensemble vide (pas de premier worker)
+    
+    
+    
+    
     // - envoyer au premier worker ordre de fin (cf. master_worker.h)
     // - attendre sa fin
     // - envoyer l'accusé de réception au client (cf. client_master.h)
-    printf("le programme passe par orderStop");
     int tubeMasterClient = data->tubeMC;
-    int order = CM_ANSWER_STOP_OK;
-    int ret = write(tubeMasterClient, &order, sizeof(int));
+    
+    ret = write(tubeMasterClient, &order, sizeof(int));
+    assert(ret != -1);
     
     //END TODO
 }
@@ -92,15 +103,23 @@ void orderStop(Data *data)
  ************************************************************************/
 void orderHowMany(Data *data)
 {
+  int order = CM_ANSWER_HOW_MANY_OK;
+  int results;
     TRACE0("[master] ordre how many\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
     // - traiter le cas ensemble vide (pas de premier worker)
+    if (true){
+       results = 0;
+    }   
     // - envoyer au premier worker ordre howmany (cf. master_worker.h)
     // - recevoir accusé de réception venant du premier worker (cf. master_worker.h)
     // - recevoir résultats (deux quantités) venant du premier worker
     // - envoyer l'accusé de réception au client (cf. client_master.h)
+    int tubeMasterClient = data->tubeMC;
+    order = CM_ANSWER_HOW_MANY_OK ;
+    int ret = write(tubeMasterClient, &order, sizeof(int));
     // - envoyer les résultats au client
     //END TODO
 }
@@ -111,17 +130,24 @@ void orderHowMany(Data *data)
  ************************************************************************/
 void orderMinimum(Data *data)
 {
+    int order = CM_ANSWER_MINIMUM_OK;
+
     TRACE0("[master] ordre minimum\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
     // - si ensemble vide (pas de premier worker)
     //       . envoyer l'accusé de réception dédié au client (cf. client_master.h)
+    if (true){
+       order = CM_ANSWER_MINIMUM_EMPTY;
+    }   
     // - sinon
     //       . envoyer au premier worker ordre minimum (cf. master_worker.h)
     //       . recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
     //       . recevoir résultat (la valeur) venant du worker concerné
     //       . envoyer l'accusé de réception au client (cf. client_master.h)
+    int tubeMasterClient = data->tubeMC;
+    int ret = write(tubeMasterClient, &order, sizeof(int));
     //       . envoyer le résultat au client
     //END TODO
 }
@@ -132,11 +158,20 @@ void orderMinimum(Data *data)
  ************************************************************************/
 void orderMaximum(Data *data)
 {
+    int order = CM_ANSWER_MAXIMUM_OK;
     TRACE0("[master] ordre maximum\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
     // cf. explications pour le minimum
+
+    if (true){
+       order = CM_ANSWER_MAXIMUM_EMPTY;
+    }   
+
+    int tubeMasterClient = data->tubeMC;
+    
+    int ret = write(tubeMasterClient, &order, sizeof(int));
     //END TODO
 }
 
@@ -146,22 +181,38 @@ void orderMaximum(Data *data)
  ************************************************************************/
 void orderExist(Data *data)
 {
+  int order = CM_ANSWER_EXIST_YES;
+  int ret;
     TRACE0("[master] ordre existence\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
     // - recevoir l'élément à tester en provenance du client
+    
     // - si ensemble vide (pas de premier worker)
     //       . envoyer l'accusé de réception dédié au client (cf. client_master.h)
+    if (true){
+       order = CM_ANSWER_EXIST_NO;
+    }   
     // - sinon
     //       . envoyer au premier worker ordre existence (cf. master_worker.h)
     //       . envoyer au premier worker l'élément à tester
     //       . recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
     //       . si élément non présent
     //             . envoyer l'accusé de réception dédié au client (cf. client_master.h)
+
+    int tubeMasterClient = data->tubeMC;
+    
+    if (false){
+      int ret = write(tubeMasterClient, &order, sizeof(int));
+    }
+    
     //       . sinon
     //             . recevoir résultat (une quantité) venant du worker concerné
     //             . envoyer l'accusé de réception au client (cf. client_master.h)
+    if (true){
+      ret = write(tubeMasterClient, &order, sizeof(int));
+    }
     //             . envoyer le résultat au client
     //END TODO
 }
@@ -180,6 +231,9 @@ void orderSum(Data *data)
     // - recevoir accusé de réception venant du premier worker (cf. master_worker.h)
     // - recevoir résultat (la somme) venant du premier worker
     // - envoyer l'accusé de réception au client (cf. client_master.h)
+    int tubeMasterClient = data->tubeMC;
+    int order = CM_ANSWER_SUM_OK;
+    int ret = write(tubeMasterClient, &order, sizeof(int));
     // - envoyer le résultat au client
     //END TODO
 }
@@ -221,6 +275,9 @@ void orderInsertMany(Data *data)
     // - pour chaque élément du tableau
     //       . l'insérer selon l'algo vu dans orderInsert (penser à factoriser le code)
     // - envoyer l'accusé de réception au client (cf. client_master.h)
+    int tubeMasterClient = data->tubeMC;
+    int order = CM_ANSWER_INSERT_MANY_OK;
+    int ret = write(tubeMasterClient, &order, sizeof(int));
     //END TODO
 }
 
@@ -239,6 +296,9 @@ void orderPrint(Data *data)
     // - recevoir accusé de réception venant du premier worker (cf. master_worker.h)
     //   note : ce sont les workers qui font les affichages
     // - envoyer l'accusé de réception au client (cf. client_master.h)
+    int tubeMasterClient = data->tubeMC;
+    int order = CM_ANSWER_PRINT_OK;
+    int ret = write(tubeMasterClient, &order, sizeof(int));
     //END TODO
 }
 
@@ -269,7 +329,7 @@ void loop(Data *data)
         perror("Erreur lors de la lecture du tube");  
         //Autres actions à effectuer en cas d'erreur...
         }
-        printf("ordre int: ");
+        //printf("ordre int: ");
         printf("%d\n", order);
           
 
@@ -353,19 +413,30 @@ int main(int argc, char * argv[])
 
     TRACE0("[master] début\n");
 
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+
     Data data;
-    int ret, rec;
+    //DataMiddle dataMiddle;
+    int ret;
 
     //TODO
     // - création des sémaphores
+    int sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
+    assert(sem != -1);
+    ret = semctl(sem, 0, SETVAL, 0);
+    assert(ret != -1);
+    data.sem = sem; // facultatif si on fait le sem op en dessous
     
 
+    // creation tube anonyme
 
-    int sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
-    //assert(sem != -1);
-    ret = semctl(sem, 0, SETVAL, 0);
-    //assert(ret != -1);
-    data.sem = sem;
+    int fds[2];
+    ret = pipe(fds);
+    assert(ret == 0);
+
+    data.tubeMW = fds;
+    
 
     // - création des tubes nommés
     
