@@ -29,6 +29,7 @@ typedef struct
 {
     // communication avec le client
     int tubeMC;
+    int tubeCM;
     int sem;
     
     // données internes
@@ -57,8 +58,15 @@ static void usage(const char *exeName, const char *message)
 void init(Data *data)
 {
     myassert(data != NULL, "il faut l'environnement d'exécution");
-    
+  
+    data->tubeCM = mkfifo("tubeCM", 0644);
+    myassert(data->tubeCM == 0, "Création du tube");
 
+    data->tubeMC = mkfifo("tubeMC", 0644);
+    myassert(data->tubeMC == 0, "Création du tube");
+    
+    data->sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
+    myassert(data->tubeMC != -1, "Création semaphorque");
     //TODO initialisation data
 }
 
@@ -78,10 +86,10 @@ void orderStop(Data *data)
     // - attendre sa fin
     // - envoyer l'accusé de réception au client (cf. client_master.h)
     printf("le programme passe par orderStop");
-    int tubeMasterClient = data->tubeMC;
+    /*int tubeMasterClient = data->tubeMC;
     int order = CM_ANSWER_STOP_OK;
     int ret = write(tubeMasterClient, &order, sizeof(int));
-    
+    */
     //END TODO
 }
 
@@ -257,12 +265,9 @@ void loop(Data *data)
         //DataMiddle tubeMiddle;
         //TODO ouverture des tubes avec le client (cf. explications dans client.c)
         int order;
-        int tubeClientMaster = open("tubeCM", O_RDONLY);
         int tubeMasterClient = open("tubeMC", O_WRONLY);
-        
+        int tubeClientMaster = open("tubeCM", O_RDONLY);
      
-        (*data).tubeMC = tubeMasterClient;
-
         int ret = read(tubeClientMaster, &order, sizeof(int));
         if (ret == -1) {
         perror("Erreur lors de la lecture du tube");  
@@ -320,7 +325,6 @@ void loop(Data *data)
         //     voyez-vous pourquoi ?
         //TODO attendre ordre du client avant de continuer (sémaphore pour une précédence)
 
-
         int sem = data->sem;
 
         struct sembuf operation = {0, -1, 0}; 
@@ -353,38 +357,33 @@ int main(int argc, char * argv[])
     TRACE0("[master] début\n");
 
     Data data;
-    int ret, rec;
+    //int rec;
 
     //TODO
     // - création des sémaphores
     
-
-
-    int sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
-    //assert(sem != -1);
-    ret = semctl(sem, 0, SETVAL, 0);
+    int ret = semctl(data.sem, 0, SETVAL, 0);
     //assert(ret != -1);
-    data.sem = sem;
 
     // - création des tubes nommés
-    
+    /*
     int tubeClientMaster = mkfifo("tubeCM", 0644); 
     assert(tubeClientMaster != 1);
 
     int tubeMasterClient = mkfifo("tubeMC", 0644); 
     assert(tubeMasterClient != 1);
-
+*/
     //END TODO
 
     loop(&data);
     
     //TODO destruction des tubes nommés, des sémaphores, ...
-
+  /*
     ret = unlink(tubeClientMaster);
     assert(ret != 1);
     ret = unlink(tubeMasterClient);
     assert(ret != 1);
-
+  */
     TRACE0("[master] terminaison\n");
     return EXIT_SUCCESS;
 }

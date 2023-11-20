@@ -193,9 +193,19 @@ static void parseArgs(int argc, char * argv[], Data *data)
  * Partie multi-thread
  ************************************************************************/
 //TODO Une structure pour les arguments à passer à un thread (aucune variable globale autorisée)
-
+typedef struct {
+    int *tab;
+    int element;
+}Thread;
 //TODO
 // Code commun à tous les threads
+void * codeThread(void * arg)
+{
+    assert(arg == NULL);
+
+    printf("Thread avec comme pid : %d\n", getpid());
+    return NULL;
+}
 // Un thread s'occupe d'une portion du tableau et compte en interne le nombre de fois
 // où l'élément recherché est présent dans cette portion. On ajoute alors,
 // en section critique, ce nombre au compteur partagé par tous les threads.
@@ -338,20 +348,23 @@ int main(int argc, char * argv[])
 
 
         int tubeClientMaster = open("tubeCM", O_WRONLY);
-        assert(tubeClientMaster !=1);
+        myassert(tubeClientMaster !=1, "Tube Client Master");
+        data.tubeCM = tubeClientMaster;
+        sendData(&data);
 
         int tubeMasterClient = open("tubeMC", O_RDONLY);
-        assert(tubeMasterClient !=1);
-
-        data.tubeCM = tubeClientMaster;
+        myassert(tubeMasterClient !=1, "Tube Master Client");
         data.tubeMC = tubeMasterClient;
+        receiveAnswer(&data);
+        
+        
 
         //       . les ouvertures sont bloquantes, il faut s'assurer que
         //         le master ouvre les tubes dans le même ordre
         //END TODO
 
-        sendData(&data);
-        receiveAnswer(&data);
+        
+        
 
         //TODO
         // - sortir de la section critique
@@ -359,7 +372,7 @@ int main(int argc, char * argv[])
         // - libérer les ressources (fermeture des tubes, ...)
         ret = close("tubeCM");
         ret = close("tubeMC");
-        assert(ret!=1);
+        myassert(ret!=1, "close");
 
 
 
