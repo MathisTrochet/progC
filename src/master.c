@@ -20,6 +20,7 @@
 #include <pthread.h> // rajouté
 #include <sys/ipc.h> // ajouté 
 #include <sys/sem.h> // ajouté 
+#include <sys/stat.h> // ajouté 
 
 
 /************************************************************************
@@ -30,8 +31,8 @@ typedef struct
     // communication avec le client
     int tubeCM;
     int tubeMC;
-    int sem;
-    int tubeMW;
+    int sem2; // le semaphore pour bloquer la loop
+    int *tubeMW;
     
     // données internes
     
@@ -59,13 +60,13 @@ static void usage(const char *exeName, const char *message)
 void init(Data *data)
 {
     myassert(data != NULL, "il faut l'environnement d'exécution");
-  
+  /*
     (*data).tubeCM = mkfifo("tubeCM", 0644);
     myassert(data->tubeCM == 0, "Création du tube");
 
     (*data).tubeMC = mkfifo("tubeMC", 0644);
     myassert(data->tubeMC == 0, "Création du tube");
-    
+  */
 
     //TODO initialisation data
 }
@@ -80,12 +81,13 @@ void orderStop(Data *data)
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
-    int *fds[2];
+    //int *fds[2];
+    int ret;
 
     int order = CM_ANSWER_STOP_OK;
 
-    int ret = write(fds[1], order, sizeof(int));
-    assert(ret != 1);
+    //int ret = write(fds[1], &order, sizeof(int));
+    //assert(ret != 1);
      
 
     // - traiter le cas ensemble vide (pas de premier worker)
@@ -111,15 +113,15 @@ void orderStop(Data *data)
 void orderHowMany(Data *data)
 {
   int order = CM_ANSWER_HOW_MANY_OK;
-  int results;
+  //int results;
     TRACE0("[master] ordre how many\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
     // - traiter le cas ensemble vide (pas de premier worker)
-    if (true){
-       results = 0;
-    }   
+    //if (true){
+    //   results = 0;
+    //}   
     // - envoyer au premier worker ordre howmany (cf. master_worker.h)
     // - recevoir accusé de réception venant du premier worker (cf. master_worker.h)
     // - recevoir résultats (deux quantités) venant du premier worker
@@ -127,6 +129,7 @@ void orderHowMany(Data *data)
     int tubeMasterClient = data->tubeMC;
     order = CM_ANSWER_HOW_MANY_OK ;
     int ret = write(tubeMasterClient, &order, sizeof(int));
+    assert(ret != -1);
     // - envoyer les résultats au client
     //END TODO
 }
@@ -155,6 +158,7 @@ void orderMinimum(Data *data)
     //       . envoyer l'accusé de réception au client (cf. client_master.h)
     int tubeMasterClient = data->tubeMC;
     int ret = write(tubeMasterClient, &order, sizeof(int));
+    assert(ret != -1);
     //       . envoyer le résultat au client
     //END TODO
 }
@@ -179,6 +183,7 @@ void orderMaximum(Data *data)
     int tubeMasterClient = data->tubeMC;
     
     int ret = write(tubeMasterClient, &order, sizeof(int));
+    assert(ret != -1);
     //END TODO
 }
 
@@ -212,6 +217,7 @@ void orderExist(Data *data)
     
     if (false){
       int ret = write(tubeMasterClient, &order, sizeof(int));
+      assert(ret != -1);
     }
     
     //       . sinon
@@ -219,6 +225,7 @@ void orderExist(Data *data)
     //             . envoyer l'accusé de réception au client (cf. client_master.h)
     if (true){
       ret = write(tubeMasterClient, &order, sizeof(int));
+      assert(ret != -1);
     }
     //             . envoyer le résultat au client
     //END TODO
@@ -241,6 +248,7 @@ void orderSum(Data *data)
     int tubeMasterClient = data->tubeMC;
     int order = CM_ANSWER_SUM_OK;
     int ret = write(tubeMasterClient, &order, sizeof(int));
+    assert(ret != -1);
     // - envoyer le résultat au client
     //END TODO
 }
@@ -285,6 +293,7 @@ void orderInsertMany(Data *data)
     int tubeMasterClient = data->tubeMC;
     int order = CM_ANSWER_INSERT_MANY_OK;
     int ret = write(tubeMasterClient, &order, sizeof(int));
+    assert(ret != -1);
     //END TODO
 }
 
@@ -306,6 +315,7 @@ void orderPrint(Data *data)
     int tubeMasterClient = data->tubeMC;
     int order = CM_ANSWER_PRINT_OK;
     int ret = write(tubeMasterClient, &order, sizeof(int));
+    assert(ret != -1);
     //END TODO
 }
 
@@ -324,7 +334,7 @@ void loop(Data *data)
 
         //DataMiddle tubeMiddle;
         //TODO ouverture des tubes avec le client (cf. explications dans client.c)
-        int order;
+        int order=0;
         int tubeClientMaster = open("tubeCM", O_RDONLY);
         int tubeMasterClient = open("tubeMC", O_WRONLY);
         
@@ -337,7 +347,7 @@ void loop(Data *data)
         //Autres actions à effectuer en cas d'erreur...
         }
         //printf("ordre int: ");
-        printf("%d\n", order);
+        printf("|%d|\n", order);
           
 
         //assert(ret != -1);
@@ -377,24 +387,34 @@ void loop(Data *data)
             break;
         }
 
+
+        
+
+        
+
+        //TODO attendre ordre du client avant de continuer (sémaphore pour une précédence)
+
+        int sem2 = data->sem2;
+
+        
+
+        struct sembuf operation2 = {0, -1, 0}; 
+        ret = semop(sem2, &operation2, 1);
+        assert(ret != -1);
+        sleep(1);       
+
         //TODO fermer les tubes nommés
+
+      
         ret = close(tubeClientMaster);
         assert(ret != 1);
 
         ret = close(tubeMasterClient);
         assert(ret != 1);
+       
 
         //     il est important d'ouvrir et fermer les tubes nommés à chaque itération
         //     voyez-vous pourquoi ?
-        //TODO attendre ordre du client avant de continuer (sémaphore pour une précédence)
-
-
-        int sem = data->sem;
-
-        struct sembuf operation = {0, -1, 0}; 
-        ret = semop(sem, &operation, 1);
-        //assert(ret != -1);
-
         //Reponse :
         //En fermant le tube à la fin de chaque itération, 
         //on libere la file d'attente associée au tube nommé, 
@@ -420,27 +440,39 @@ int main(int argc, char * argv[])
 
     TRACE0("[master] début\n");
 
-    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    //pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
     Data data;
     //DataMiddle dataMiddle;
-    int ret;
-    key_t key;
-    int semId;
-
-    key = ftok(MON_FICHIER, PROJ_ID);
+    int ret, sem1, sem2;
+    key_t key1, key2;
 
     //TODO
     // - création des sémaphores
-    int key = ftok("client_master.h", MA_CLE)
-    int sem = semget(MA_CLE, 0, IPC_CREAT | IPC_EXCL | 0641);
-    myassert(sem != -1, "erreur sem");
-    ret = semctl(sem, 0, SETVAL, 0);
-    myassert(sem != -1, "erreur sem");
-    data.sem = sem; // facultatif si on fait le sem op en dessous
-    
+    key1 = ftok(MON_FICHIER, MA_CLE1); // sem1 -> semaphore pour empecher 2 clients de faire un demande au master en meme temps 
+    myassert(key1 != -1, "erreur key");
 
+    sem1 = semget(key1, 1, IPC_CREAT | IPC_EXCL | 0641);
+    myassert(sem1 != -1, "erreur semget");
+
+    ret = semctl(sem1, 0, SETVAL, 1);
+    myassert(ret != -1, "erreur semctl");
+
+
+
+    key2 = ftok(MON_FICHIER, MA_CLE2);   // sem2 -> semaphore pour bloquer la loop du master le temps que le client read le resultat et le print 
+    myassert(key2 != -1, "erreur key2");
+
+    sem2 = semget(key2, 1, IPC_CREAT | IPC_EXCL | 0641);
+    myassert(sem2 != -1, "erreur semget2");
+
+    ret = semctl(sem2, 0, SETVAL, 0);
+    myassert(ret != -1, "erreur semctl2");
+
+    data.sem2 = sem2; // facultatif si on fait le sem op en dessous
+    
+ 
     // creation tube anonyme
 
     int fds[2];
@@ -463,12 +495,18 @@ int main(int argc, char * argv[])
 
     loop(&data);
     
+    
     //TODO destruction des tubes nommés, des sémaphores, ...
 
-    ret = unlink(tubeClientMaster);
+    ret = unlink("tubeCM");
     assert(ret != 1);
-    ret = unlink(tubeMasterClient);
+    ret = unlink("tubeMC");
     assert(ret != 1);
+
+    ret = semctl(sem1, -1, IPC_RMID);
+    myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
+    ret = semctl(sem2, -1, IPC_RMID);
+    myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
 
     TRACE0("[master] terminaison\n");
     return EXIT_SUCCESS;

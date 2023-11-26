@@ -43,8 +43,10 @@ typedef struct {
 
 
 // . création/libération/initialisation de ressources (sémaphores, tubes, ...)
-#define MA_CLE 23  
-#define MON_FICHIER client_master.h
+#define MA_CLE1 23  
+#define MA_CLE2 7  
+
+#define MON_FICHIER "client_master.h"
 
 
 

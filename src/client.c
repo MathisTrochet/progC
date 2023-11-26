@@ -50,7 +50,7 @@ typedef struct {
     int tubeCM;
     int tubeMC;
     int orderReturn;
-    int sem;
+    int sem2;
     //TODO
     // infos pour le travail à faire (récupérées sur la ligne de commande)
     int order;     // ordre de l'utilisateur (cf. CM_ORDER_* dans client_master.h)
@@ -275,17 +275,18 @@ void receiveAnswer(const Data *data)
     // - récupération de l'accusé de réception du master (cf. CM_ANSWER_* dans client_master.h)
     int order;
     int ret = read(tubeMasterClient, &order, sizeof(int));
-    
-    //assert(ret != -1);
-    int sem = data->sem;
-    
-    //assert(ret != -1);
-
-
+    assert(ret!=1);
     
     // - selon l'ordre et l'accusé de réception :
     //      . récupération de données supplémentaires du master si nécessaire
     // - affichage du résultat
+
+    int sem2 = data->sem2;
+
+    struct sembuf operation2 = {0, +1, 0};
+    ret = semop(sem2, &operation2, 1);
+    assert(ret!=1);
+
     printf("[CLIENT] accusé de reception : %d \n", order);
     //END TODO
 }
@@ -305,29 +306,22 @@ int main(int argc, char * argv[])
     else
     {
 
-        int ret;
+        int ret, sem1, sem2, key1, key2;
+
+        key1 = ftok(MON_FICHIER, MA_CLE1);
+        sem1 = semget(key1, 1, 0); // on recupere le semaphore pour la section critique (sem1)
+
+        key2 = ftok(MON_FICHIER, MA_CLE2);
+        sem2 = semget(key2, 1, 0); // on recupere le semaphore pour bloquer la loop
+
+        data.sem2 = sem2;
+
         //TODO
         // - entrer en section critique 
-        
-        pthread_mutex_t mutex = dataMiddle.mutexMiddle;
-        pthread_mutex_lock(&mutex);
 
-        int sem = semget(MA_CLE, 1, 0);
-
-        ret = semctl(sem, 0, SETVAL, 0);
-        //data.sem = sem;
-
-
-        
-/*
-        int sem = semget(MA_CLE, 1, 0); 
-
-        ret = semctl(sem, 0, SETVAL, 0);
-        //assert(ret != -1);
-        struct sembuf operation = {0, +1, 0};
-        ret = semop(sem, &operation, 1);
-        //assert(ret != -1);
-*/
+        struct sembuf operation = {0, -1, 0};
+        ret = semop(sem1, &operation, 1);
+        assert(ret != -1);
         
         //       . pour empêcher que 2 clients communiquent simultanément
         //       . le mutex est déjà créé par le master
@@ -348,22 +342,25 @@ int main(int argc, char * argv[])
         //END TODO
 
         sendData(&data);
-        
         receiveAnswer(&data);
 
         //TODO
         // - sortir de la section critique
-        pthread_mutex_unlock(&mutex);
+
+        
+
         // - libérer les ressources (fermeture des tubes, ...)
-        ret = close("tubeCM");
-        ret = close("tubeMC");
+        ret = close(tubeClientMaster);
+        assert(ret!=1);
+        ret = close(tubeMasterClient);
         assert(ret!=1);
 
 
-
+        struct sembuf operation1 = {0, +1, 0};
+        ret = semop(sem1, &operation1, 1);
+        assert(ret!=1);
         // - débloquer le master grâce à un second sémaphore (cf. ci-dessous)
-        struct sembuf operation = {0, +1, 0};
-        ret = semop(sem, &operation, 1);
+        
         //
         // Une fois que le master a envoyé la réponse au client, il se bloque
         // sur un sémaphore ; le dernier point permet donc au master de continuer
