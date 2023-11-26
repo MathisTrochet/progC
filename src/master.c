@@ -401,7 +401,7 @@ void loop(Data *data)
         struct sembuf operation2 = {0, -1, 0}; 
         ret = semop(sem2, &operation2, 1);
         assert(ret != -1);
-        sleep(1);       
+        //sleep(1);       
 
         //TODO fermer les tubes nommés
 

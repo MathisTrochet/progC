@@ -279,13 +279,7 @@ void receiveAnswer(const Data *data)
     
     // - selon l'ordre et l'accusé de réception :
     //      . récupération de données supplémentaires du master si nécessaire
-    // - affichage du résultat
-
-    int sem2 = data->sem2;
-
-    struct sembuf operation2 = {0, +1, 0};
-    ret = semop(sem2, &operation2, 1);
-    assert(ret!=1);
+    // - affichage du résultat    
 
     printf("[CLIENT] accusé de reception : %d \n", order);
     //END TODO
@@ -298,7 +292,7 @@ void receiveAnswer(const Data *data)
 int main(int argc, char * argv[])
 {
     Data data;
-    DataMiddle dataMiddle;
+    //DataMiddle dataMiddle;
     parseArgs(argc, argv, &data);
 
     if (data.order == CM_ORDER_LOCAL)
@@ -344,24 +338,26 @@ int main(int argc, char * argv[])
         sendData(&data);
         receiveAnswer(&data);
 
-        //TODO
-        // - sortir de la section critique
-
-        
+        //TODO        
 
         // - libérer les ressources (fermeture des tubes, ...)
         ret = close(tubeClientMaster);
         assert(ret!=1);
         ret = close(tubeMasterClient);
         assert(ret!=1);
+        
+        // - débloquer le master grâce à un second sémaphore (cf. ci-dessous)
 
+        struct sembuf operation2 = {0, +1, 0};
+        ret = semop(sem2, &operation2, 1);
+        assert(ret!=1);
+
+        // - sortir de la section critique
 
         struct sembuf operation1 = {0, +1, 0};
         ret = semop(sem1, &operation1, 1);
         assert(ret!=1);
-        // - débloquer le master grâce à un second sémaphore (cf. ci-dessous)
         
-        //
         // Une fois que le master a envoyé la réponse au client, il se bloque
         // sur un sémaphore ; le dernier point permet donc au master de continuer
         //
