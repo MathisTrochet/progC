@@ -57,7 +57,7 @@ static void usage(const char *exeName, const char *message)
 /************************************************************************
  * initialisation complète
  ************************************************************************/
-void init(Data *data)
+void init(Data *data) 
 {
     myassert(data != NULL, "il faut l'environnement d'exécution");
   /*
@@ -273,6 +273,10 @@ void orderInsert(Data *data)
     //       . envoyer au premier worker l'élément à insérer
     // - recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
     // - envoyer l'accusé de réception au client (cf. client_master.h)
+    int tubeMasterClient = data->tubeMC;
+    int order = CM_ANSWER_INSERT_MANY_OK;
+    int ret = write(tubeMasterClient, &order, sizeof(int));
+    assert(ret != -1);
     //END TODO
 }
 
@@ -334,20 +338,32 @@ void loop(Data *data)
 
         //DataMiddle tubeMiddle;
         //TODO ouverture des tubes avec le client (cf. explications dans client.c)
-        int order=0;
+        int order, ret;
+        Parametres par;
         int tubeClientMaster = open("tubeCM", O_RDONLY);
         int tubeMasterClient = open("tubeMC", O_WRONLY);
         
      
         (*data).tubeMC = tubeMasterClient;
 
-        int ret = read(tubeClientMaster, &order, sizeof(int));
+        ret = read(tubeClientMaster, &order, sizeof(int));
         if (ret == -1) {
         perror("Erreur lors de la lecture du tube");  
         //Autres actions à effectuer en cas d'erreur...
         }
         //printf("ordre int: ");
         printf("|%d|\n", order);
+
+        if (order == CM_ORDER_INSERT || order == CM_ORDER_EXIST || order == CM_ORDER_INSERT_MANY || order == CM_ORDER_LOCAL){
+          ret = read(tubeClientMaster, &par, sizeof(par));
+          if (ret == -1) {
+          perror("Erreur lors de la lecture du tube");  
+          //Autres actions à effectuer en cas d'erreur...
+          }
+          printf("(%d)\n", (int) par.elt);
+        }
+      
+        
           
 
         //assert(ret != -1);

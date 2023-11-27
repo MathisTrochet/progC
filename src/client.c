@@ -43,7 +43,7 @@
  * structure stockant les paramètres du client
  * - les infos pour communiquer avec le master
  * - les infos pour effectuer le travail (cf. ligne de commande)
- *   (note : une union permettrait d'optimiser la place mémoire)
+ *   (note : une union permettrait d'optimiser la place mémoire) 
  ************************************************************************/
 typedef struct {
     // communication avec le master
@@ -257,6 +257,29 @@ void sendData(const Data *data)
     int order = data->order;
     int ret = write(tubeClientMaster, &order, sizeof(int));
     assert (ret !=1);
+
+    if (order == CM_ORDER_INSERT || order == CM_ORDER_EXIST){
+        Parametres par;
+        par.elt = data->elt;
+        write(tubeClientMaster, &par, sizeof(par));
+    }
+    if (order == CM_ORDER_INSERT_MANY){
+        Parametres par;
+        par.nb = data->nb;
+        par.min = data->min;
+        par.max = data->max;
+        write(tubeClientMaster, &par, sizeof(par));
+        
+    }
+    if (order == CM_ORDER_LOCAL){
+        Parametres par;
+        par.elt = data->elt;
+        par.nb = data->nb;
+        par.min = data->min;
+        par.max = data->max;
+        par.nbThreads = data->nbThreads;
+        write(tubeClientMaster, &par, sizeof(par));
+    }
 
 
     
