@@ -271,7 +271,8 @@ void sendData(const Data *data)
         write(tubeClientMaster, &par, sizeof(par));
         
     }
-    if (order == CM_ORDER_LOCAL){
+    /*
+    else if (order == CM_ORDER_LOCAL){
         Parametres par;
         par.elt = data->elt;
         par.nb = data->nb;
@@ -280,6 +281,7 @@ void sendData(const Data *data)
         par.nbThreads = data->nbThreads;
         write(tubeClientMaster, &par, sizeof(par));
     }
+    */
 
 
     
@@ -366,7 +368,7 @@ int main(int argc, char * argv[])
         // - libérer les ressources (fermeture des tubes, ...)
         ret = close(tubeClientMaster);
         assert(ret!=1);
-        ret = close(tubeMasterClient);
+        ret = close(tubeMasterClient);      //
         assert(ret!=1);
         
         // - débloquer le master grâce à un second sémaphore (cf. ci-dessous)

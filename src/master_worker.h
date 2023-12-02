@@ -33,6 +33,7 @@
 // . libération/initialisation de ressources (sémaphores, tubes, ...)
 // . communications
 // . lancement d'un worker
+bool isGrandMasterEmpty;
 //END TODO
 
 #endif

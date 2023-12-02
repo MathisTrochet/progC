@@ -21,11 +21,16 @@
 typedef struct
 {
     // données internes (valeur de l'élément, cardinalité)
+    float elt;
+    int order;
     // communication avec le père (2 tubes) et avec le master (1 tube en écriture)
+    int fdIn;
+    int fdOut;
+    int fdToMaster;
+
     // communication avec le fils gauche s'il existe (2 tubes)
     // communication avec le fils droit s'il existe (2 tubes)
     //TODO
-    int dummy;  //TODO à enlever (présent pour éviter le warning)
 } Data;
 
 
@@ -59,6 +64,10 @@ static void parseArgs(int argc, char * argv[], Data *data)
     int fdOut = strtol(argv[3], NULL, 10);
     int fdToMaster = strtol(argv[4], NULL, 10);
     printf("%g %d %d %d\n", elt, fdIn, fdOut, fdToMaster);
+    (*data).elt = elt;
+    (*data).fdIn = fdIn;
+    (*data).fdOut = fdOut;
+    (*data).fdToMaster = fdToMaster;
     //END TODO
 }
 
@@ -68,12 +77,12 @@ static void parseArgs(int argc, char * argv[], Data *data)
  ************************************************************************/
 void stopAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre stop\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre stop\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
 
-    printf("it worked"); // seulement pour tester
+    //printf("it worked"); // seulement pour tester
 
     // - traiter les cas où les fils n'existent pas
     // - envoyer au worker gauche ordre de fin (cf. master_worker.h)
@@ -88,7 +97,7 @@ void stopAction(Data *data)
  ************************************************************************/
 static void howManyAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre how many\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre how many\n", getpid(), getppid(),  data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
@@ -108,7 +117,7 @@ static void howManyAction(Data *data)
  ************************************************************************/
 static void minimumAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre minimum\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre minimum\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
@@ -127,7 +136,7 @@ static void minimumAction(Data *data)
  ************************************************************************/
 static void maximumAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre maximum\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre maximum\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
@@ -141,7 +150,7 @@ static void maximumAction(Data *data)
  ************************************************************************/
 static void existAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre exist\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre exist\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
@@ -170,7 +179,7 @@ static void existAction(Data *data)
  ************************************************************************/
 static void sumAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre sum\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre sum\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
@@ -190,7 +199,7 @@ static void sumAction(Data *data)
  ************************************************************************/
 static void insertAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre insert\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre insert\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
@@ -221,7 +230,7 @@ static void insertAction(Data *data)
  ************************************************************************/
 static void printAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
@@ -270,6 +279,7 @@ void loop(Data *data)
             break;
           case MW_ORDER_INSERT:
             insertAction(data);
+            end = true; // a enlever
             break;
           case MW_ORDER_PRINT:
             printAction(data);
@@ -280,7 +290,7 @@ void loop(Data *data)
             break;
         }
 
-        TRACE3("    [worker (%d, %d) {%g}] : fin ordre\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+        TRACE3("    [worker (%d, %d) {%g}] : fin ordre\n", getpid(), getppid(), data->elt);
     }
 }
 
@@ -292,8 +302,18 @@ void loop(Data *data)
 int main(int argc, char * argv[])
 {
     Data data;
+    int ret;
     parseArgs(argc, argv, &data);
-    TRACE3("    [worker (%d, %d) {%g}] : début worker\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : début worker\n", getpid(), getppid(), data.elt);
+
+    int tubeWorkerMaster = data.fdToMaster;
+    myassert(tubeWorkerMaster!= -1, "tubeWorkerMaster mal recupéré");
+
+    //TRACE3("||(%d, %d) {%d}||\n", answer, answer, answer);
+
+    int answer = MW_ANSWER_INSERT;
+    ret = write(tubeWorkerMaster, &answer, sizeof(int));
+    myassert(ret != -1, "write pas bon");
 
     //TODO envoyer au master l'accusé de réception d'insertion (cf. master_worker.h)
     //TODO note : en effet si je suis créé c'est qu'on vient d'insérer un élément : moi
@@ -301,7 +321,10 @@ int main(int argc, char * argv[])
     loop(&data);
 
     //TODO fermer les tubes
+    ret = close(tubeWorkerMaster);
+    myassert(ret != -1, "close tube failure");
 
-    TRACE3("    [worker (%d, %d) {%g}] : fin worker\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+
+    TRACE3("    [worker (%d, %d) {%g}] : fin worker\n", getpid(), getppid(), data.elt);
     return EXIT_SUCCESS;
 }
