@@ -193,8 +193,15 @@ static void parseArgs(int argc, char * argv[], Data *data)
  * Partie multi-thread
  ************************************************************************/
 //TODO Une structure pour les arguments à passer à un thread (aucune variable globale autorisée)
+struct 
+{
+    int *p
+}ThreadData;
 
 //TODO
+void * Create(void * arg){
+    return NULL;
+}
 // Code commun à tous les threads
 // Un thread s'occupe d'une portion du tableau et compte en interne le nombre de fois
 // où l'élément recherché est présent dans cette portion. On ajoute alors,
@@ -211,9 +218,20 @@ void lauchThreads(const Data *data)
     int result = 0;
     float * tab = ut_generateTab(data->nb, data->min, data->max, 0);
 
-    //TODO lancement des threads
+    int nb_thread = data->nbThreads;
+    pthread_t threadID[nb_thread];
 
+    //TODO lancement des threads
+    for(int i=0; i < nb_thread; i++){
+        int ret = pthread_create(threadID[i], NULL, Create, NULL); //!!!!!!!!!!!
+        myassert(ret == 0, "Erreur : lancement des threads");
+    }
+    
     //TODO attente de la fin des threads
+    for(int i=0; i < nb_thread; i++){
+        int ret = pthread_join(threadID[i], NULL); 
+        myassert(ret == 0, "Erreur : attente de la fin des threads");
+    }
 
     // résultat (result a été rempli par les threads)
     // affichage du tableau si pas trop gros
