@@ -193,13 +193,16 @@ static void parseArgs(int argc, char * argv[], Data *data)
  * Partie multi-thread
  ************************************************************************/
 //TODO Une structure pour les arguments à passer à un thread (aucune variable globale autorisée)
-struct 
+typedef struct 
 {
-    int *p
+    int *p;
+    int res;
 }ThreadData;
 
 //TODO
 void * Create(void * arg){
+    ThreadData *data = (ThreadData *) arg;
+
     return NULL;
 }
 // Code commun à tous les threads
@@ -217,13 +220,21 @@ void lauchThreads(const Data *data)
     //TODO déclarations nécessaires : mutex, ...
     int result = 0;
     float * tab = ut_generateTab(data->nb, data->min, data->max, 0);
-
     int nb_thread = data->nbThreads;
+
+
     pthread_t threadID[nb_thread];
+    ThreadData Datas[nb_thread];
+
+    for (int i = 0; i < nb_thread; i++)
+    {
+        Datas[i].res = &result;
+    }
+
 
     //TODO lancement des threads
     for(int i=0; i < nb_thread; i++){
-        int ret = pthread_create(threadID[i], NULL, Create, NULL); //!!!!!!!!!!!
+        int ret = pthread_create(threadID[i], NULL, Create, &(Datas[i])); //!!!!!!!!!!!
         myassert(ret == 0, "Erreur : lancement des threads");
     }
     
