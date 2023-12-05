@@ -4,6 +4,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <fcntl.h>//  rajouté
+#include <pthread.h> // rajouté
+#include <sys/ipc.h> // ajouté 
+#include <sys/sem.h> // ajouté 
+
 // ordres possibles du master pour le premier worker, ou d'un worker pour un de ses fils
 #define MW_ORDER_STOP            0
 #define MW_ORDER_HOW_MANY       10
@@ -34,6 +39,8 @@
     bool isGrandWorkerEmpty;
 } masterWorker;
 // . libération/initialisation de ressources (sémaphores, tubes, ...)
+#define MON_FICHIER2 "master_worker.h"
+#define MA_CLE3 40 
 // . communications
 // . lancement d'un worker
 

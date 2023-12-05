@@ -41,8 +41,9 @@ typedef struct
     float max;     // pour CM_ORDER_INSERT_MANY, CM_ORDER_LOCAL
     int nbThreads; // pour CM_ORDER_LOCAL
 
-    bool isWorkerEmpty;
+    bool isGrandWorkerEmpty;
     int pid;
+    int sem3;
     
     // communication avec le premier worker (double tubes)
     int *tubeWW;
@@ -78,9 +79,7 @@ void init(Data *data)
     myassert(data->tubeMC == 0, "Création du tube");
   */
 
-    //pid_t pid = fork();
-    //myassert(pid != 1, "erreur pid");
-    //(*data).pid = pid;
+    (*data).isGrandWorkerEmpty = true; // a debut le worker est vide
 
     //TODO initialisation data
 }
@@ -255,6 +254,7 @@ void orderSum(Data *data)
     //TODO
     // - traiter le cas ensemble vide (pas de premier worker) : la somme est alors 0
     // - envoyer au premier worker ordre sum (cf. master_worker.h)
+
     // - recevoir accusé de réception venant du premier worker (cf. master_worker.h)
     // - recevoir résultat (la somme) venant du premier worker
     // - envoyer l'accusé de réception au client (cf. client_master.h)
@@ -274,32 +274,22 @@ void orderSum(Data *data)
 
 void orderInsert(Data *data)
 {
-    masterWorker MW;
+    
     TRACE0("[master] ordre insertion\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
 
     // - recevoir l'élément à insérer en provenance du client 
-    int param = data->elt;
+    int param = data->elt, order=data->order;
     char strParam[20], strT1[20], strT2[20], strT3[20];
     snprintf(strParam, sizeof(strParam), "%d", param);
 
     int ret, answer=0;
 
-    //ancien pid
+    //printf("[MASTER] -> ||%d||",order);
 
-    //pid_t pid = fork();
-    //myassert(pid != 1, "erreur pid");
-    pid_t pid = data->pid;
-
-
-    
-    //else {
-    //  wait(pid); //  peut etre pas necessaire
-    //}
-
-    if (MW.isGrandWorkerEmpty == true ){ //ensemble vide
+    if (data->isGrandWorkerEmpty == true ){ //ensemble vide
       pid_t pid = fork();
       myassert(pid != 1, "erreur pid");
       if (pid == 0){
@@ -315,7 +305,10 @@ void orderInsert(Data *data)
         assert(ret != -1);
         ret = snprintf(strT3, sizeof(strT3), "%d", data->tubeMW[1]);
         assert(ret != -1);
-          
+        //printf("[MASTER] -> ||%d||",order);
+
+        write (data->tubeWW[1], &order, sizeof(int));
+        
 
         ret = execl("./worker", "worker", strParam,  strT1, strT2, strT3, (char *)NULL);
         myassert(ret != -1, "erreur execl");
@@ -326,16 +319,11 @@ void orderInsert(Data *data)
       //mettre ce qu'il y a au dessus 
     }
     else {
-      //peut etre faire un ftok 
-      int order = data->order;
-      write (data->tubeMW[1], &order, sizeof(int));
-
+      write (data->tubeWW[1], &order, sizeof(int));
     }
 
     // Sinon juste envoyer les données avec le tube MASTER-WORKER 
     // (car le processus fils devrait tourner en boucle)
-    // mettre le processus avant la boucle loop
-
 
     // - si ensemble vide (pas de premier worker)
     //       . créer le premier worker avec l'élément reçu du client
@@ -344,22 +332,26 @@ void orderInsert(Data *data)
     //       . envoyer au premier worker l'élément à insérer
     // - recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
 
+    
+
     ret = read(data->tubeMW[0], &answer, sizeof(int));
     assert(ret != -1);
 
     
 
     if (answer == MW_ANSWER_INSERT){
-      MW.isGrandWorkerEmpty = false; // si le worker renvoi une valeur ca veut dire
+      (*data).isGrandWorkerEmpty = false; // si le worker renvoi une valeur ca veut dire
     }                                // que le premier worker a bien été créé (donc var = nonVide)
 
 
     printf("[MASTER] Accusé de reception : %d\n", answer);
+
+    
     
     // - envoyer l'accusé de réception au client (cf. client_master.h)
 
     int tubeMasterClient = data->tubeMC;
-    int order = CM_ANSWER_INSERT_OK;
+    order = CM_ANSWER_INSERT_OK;
     ret = write(tubeMasterClient, &order, sizeof(int));
     assert(ret != -1);
     //END TODO
@@ -429,18 +421,25 @@ void loop(Data *data)
         int tubeMasterClient = open("tubeMC", O_WRONLY);
         myassert(tubeMasterClient != -1, "tube pas ouvert");
 
-     
         (*data).tubeMC = tubeMasterClient; // pour que les fonctions au dessus puissent envoyer les données dans le tube qu'on vient d'ouvrir
+
+
         ret = read(tubeClientMaster, &order, sizeof(int)); 
         myassert (ret != -1, "Erreur lors de la lecture du tube");
         printf("|%d|\n", order);
+
+        //on stock l'ordre dans data
+
+        (*data).order = order;
+
+        // on recoit et on stock les parametres dans data 
 
         if (order == CM_ORDER_INSERT || order == CM_ORDER_EXIST || order == CM_ORDER_INSERT_MANY || order == CM_ORDER_LOCAL){ 
           Parametres par;
           ret = read(tubeClientMaster, &par, sizeof(par));                  // on decide ici de recuperer la structure de donnée et la placer dans la structure Data
           myassert (ret != -1, "Erreur lors de la lecture du tube");
           printf("(%d)\n", (int) par.elt);
-          (*data).order = par.order; // surement facultatif
+
           (*data).elt = par.elt;
           (*data).max = par.max;
           (*data).min = par.min;
@@ -492,7 +491,15 @@ void loop(Data *data)
 
         struct sembuf operation2 = {0, -1, 0}; 
         ret = semop(sem2, &operation2, 1);
-        assert(ret != -1);      
+        myassert(ret != -1, "erreur sem2");   
+
+        int sem3 = data->sem3;
+
+    struct sembuf operation3 = {0, +1, 0}; 
+        ret = semop(sem3, &operation3, 1);
+        myassert(ret != -1, "erreur sem3");  
+
+          
 
         //TODO fermer les tubes nommés
       
@@ -531,8 +538,8 @@ int main(int argc, char * argv[])
 
     Data data;
     //DataMiddle dataMiddle;
-    int ret, sem1, sem2;
-    key_t key1, key2;
+    int ret, sem1, sem2, sem3;
+    key_t key1, key2, key3;
 
     //TODO
     // - création des sémaphores
@@ -556,7 +563,19 @@ int main(int argc, char * argv[])
     ret = semctl(sem2, 0, SETVAL, 0);
     myassert(ret != -1, "erreur semctl2");
 
-    data.sem2 = sem2; // facultatif si on fait le sem op en dessous
+    data.sem2 = sem2;
+
+
+    key3 = ftok(MON_FICHIER2, MA_CLE3);   // sem3 -> semaphore pour bloquer la loop du worker le temps que le master read le resultat et le renvoie au client
+    myassert(key3 != -1, "erreur key2");
+
+    sem3 = semget(key3, 1, IPC_CREAT | IPC_EXCL | 0641);
+    myassert(sem3 != -1, "erreur semget3");
+
+    ret = semctl(sem3, 0, SETVAL, 0);
+    myassert(ret != -1, "erreur semctl3");
+
+    data.sem3 = sem3; // facultatif si on fait le sem op en dessous
     
  
     // creation tube anonyme
@@ -601,6 +620,8 @@ int main(int argc, char * argv[])
     ret = semctl(sem1, -1, IPC_RMID);
     myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
     ret = semctl(sem2, -1, IPC_RMID);
+    myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
+    ret = semctl(sem3, -1, IPC_RMID);
     myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
 
     TRACE0("[master] terminaison\n");

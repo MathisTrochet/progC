@@ -28,6 +28,8 @@ typedef struct
     int fdOut;
     int fdToMaster;
 
+    int sem3;
+
     // communication avec le fils gauche s'il existe (2 tubes)
     int *FG;
     // communication avec le fils droit s'il existe (2 tubes)
@@ -204,6 +206,11 @@ static void insertAction(Data *data)
     TRACE3("    [worker (%d, %d) {%g}] : ordre insert\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
+    printf("\nje suis là\n");
+
+    int order = data->order;
+    int element = data->elt;
+    write(data->fdOut, &order, sizeof(int)); // envoyer accusé de reception 
     //TODO
     // - recevoir l'élément à insérer en provenance du père
     // - si élément courant == élément à tester
@@ -253,14 +260,22 @@ static void printAction(Data *data)
  ************************************************************************/
 void loop(Data *data)
 {
+    int ret;
     bool end = false;
     int order;
-    //peut etre faire un ftok 
-    read(data->fdToMaster, &order, sizeof(int));
+
+    int sem3 = data->sem3;
+
+        struct sembuf operation3 = {0, -1, 0}; 
+        ret = semop(sem3, &operation3, 1);
+        myassert(ret != -1, "erreur operation3"); 
+
+    read(data->fdOut, &order, sizeof(int));
+    printf("[WORKER] -> ||%d||",order);
 
     while (! end)
     {
-        int order = MW_ORDER_STOP;   //TODO pour que ça ne boucle pas, mais recevoir l'ordre du père
+        //int order = MW_ORDER_STOP;   //TODO pour que ça ne boucle pas, mais recevoir l'ordre du père
         switch(order)
         {
           case MW_ORDER_STOP:
@@ -284,7 +299,6 @@ void loop(Data *data)
             break;
           case MW_ORDER_INSERT:
             insertAction(data);
-            end = true; // a enlever
             break;
           case MW_ORDER_PRINT:
             printAction(data);
@@ -294,6 +308,8 @@ void loop(Data *data)
             exit(EXIT_FAILURE);
             break;
         }
+
+        
 
         TRACE3("    [worker (%d, %d) {%g}] : fin ordre\n", getpid(), getppid(), data->elt);
     }
@@ -307,7 +323,7 @@ void loop(Data *data)
 int main(int argc, char * argv[])
 {
     Data data;
-    int ret;
+    int ret, key3, sem3;
     parseArgs(argc, argv, &data);
     TRACE3("    [worker (%d, %d) {%g}] : début worker\n", getpid(), getppid(), data.elt);
 
@@ -316,7 +332,10 @@ int main(int argc, char * argv[])
 
     //TRACE3("||(%d, %d) {%d}||\n", answer, answer, answer);
 
-    
+    key3 = ftok(MON_FICHIER2, MA_CLE3);
+    sem3 = semget(key3, 1, 0); // on recupere le semaphore pour bloquer la loop
+    data.sem3 = sem3;
+
 
     //TODO envoyer au master l'accusé de réception d'insertion (cf. master_worker.h)
     int answer = MW_ANSWER_INSERT;
