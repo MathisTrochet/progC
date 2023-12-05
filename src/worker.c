@@ -29,7 +29,9 @@ typedef struct
     int fdToMaster;
 
     // communication avec le fils gauche s'il existe (2 tubes)
+    int *FG;
     // communication avec le fils droit s'il existe (2 tubes)
+    int *FD;
     //TODO
 } Data;
 
@@ -63,7 +65,7 @@ static void parseArgs(int argc, char * argv[], Data *data)
     int fdIn = strtol(argv[2], NULL, 10);
     int fdOut = strtol(argv[3], NULL, 10);
     int fdToMaster = strtol(argv[4], NULL, 10);
-    printf("%g %d %d %d\n", elt, fdIn, fdOut, fdToMaster);
+    //printf("%g %d %d %d\n", elt, fdIn, fdOut, fdToMaster);
     (*data).elt = elt;
     (*data).fdIn = fdIn;
     (*data).fdOut = fdOut;
@@ -252,6 +254,9 @@ static void printAction(Data *data)
 void loop(Data *data)
 {
     bool end = false;
+    int order;
+    //peut etre faire un ftok 
+    read(data->fdToMaster, &order, sizeof(int));
 
     while (! end)
     {
@@ -311,18 +316,20 @@ int main(int argc, char * argv[])
 
     //TRACE3("||(%d, %d) {%d}||\n", answer, answer, answer);
 
+    
+
+    //TODO envoyer au master l'accusé de réception d'insertion (cf. master_worker.h)
     int answer = MW_ANSWER_INSERT;
     ret = write(tubeWorkerMaster, &answer, sizeof(int));
     myassert(ret != -1, "write pas bon");
 
-    //TODO envoyer au master l'accusé de réception d'insertion (cf. master_worker.h)
     //TODO note : en effet si je suis créé c'est qu'on vient d'insérer un élément : moi
 
     loop(&data);
 
     //TODO fermer les tubes
     ret = close(tubeWorkerMaster);
-    myassert(ret != -1, "close tube failure");
+    myassert(ret != -1, "close tube failure"); 
 
 
     TRACE3("    [worker (%d, %d) {%g}] : fin worker\n", getpid(), getppid(), data.elt);

@@ -33,7 +33,6 @@ typedef struct
     int tubeMC;
     int sem2; // le semaphore pour bloquer la loop
     
-    
     // données internes
     int order;     // ordre de l'utilisateur (cf. CM_ORDER_* dans client_master.h)
     float elt;     // pour CM_ORDER_EXIST, CM_ORDER_INSERT, CM_ORDER_LOCAL
@@ -41,6 +40,9 @@ typedef struct
     float min;     // pour CM_ORDER_INSERT_MANY, CM_ORDER_LOCAL
     float max;     // pour CM_ORDER_INSERT_MANY, CM_ORDER_LOCAL
     int nbThreads; // pour CM_ORDER_LOCAL
+
+    bool isWorkerEmpty;
+    int pid;
     
     // communication avec le premier worker (double tubes)
     int *tubeWW;
@@ -75,6 +77,10 @@ void init(Data *data)
     (*data).tubeMC = mkfifo("tubeMC", 0644);
     myassert(data->tubeMC == 0, "Création du tube");
   */
+
+    //pid_t pid = fork();
+    //myassert(pid != 1, "erreur pid");
+    //(*data).pid = pid;
 
     //TODO initialisation data
 }
@@ -268,6 +274,7 @@ void orderSum(Data *data)
 
 void orderInsert(Data *data)
 {
+    masterWorker MW;
     TRACE0("[master] ordre insertion\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
@@ -280,34 +287,55 @@ void orderInsert(Data *data)
 
     int ret, answer=0;
 
-    pid_t pid = fork();
-    myassert(pid != 1, "erreur pid");
+    //ancien pid
+
+    //pid_t pid = fork();
+    //myassert(pid != 1, "erreur pid");
+    pid_t pid = data->pid;
 
 
-    if (pid == 0 ){
+    
+    //else {
+    //  wait(pid); //  peut etre pas necessaire
+    //}
 
-      if (data->tubeWW[0] == -1 || data->tubeWW[1] == -1 || data->tubeMW == -1) {
-        fprintf(stderr, "Erreur : Les tubes ne sont pas correctement initialisés.\n");
-        exit(EXIT_FAILURE);
-      }
+    if (MW.isGrandWorkerEmpty == true ){ //ensemble vide
+      pid_t pid = fork();
+      myassert(pid != 1, "erreur pid");
+      if (pid == 0){
 
-      ret = snprintf(strT1, sizeof(strT1), "%d", data->tubeWW[1]);
-      assert(ret != -1);
-      ret = snprintf(strT2, sizeof(strT2), "%d",data->tubeWW[0]);
-      assert(ret != -1);
-      ret = snprintf(strT3, sizeof(strT3), "%d", data->tubeMW[1]);
-      assert(ret != -1);
-        
+        if (data->tubeWW[0] == -1 || data->tubeWW[1] == -1 || data->tubeMW == -1) {
+          fprintf(stderr, "Erreur : Les tubes ne sont pas correctement initialisés.\n");
+          exit(EXIT_FAILURE);
+        }
 
-      ret = execl("./worker", "worker", strParam,  strT1, strT2, strT3, (char *)NULL);
-      myassert(ret != -1, "erreur execl");
+        ret = snprintf(strT1, sizeof(strT1), "%d", data->tubeWW[1]);
+        assert(ret != -1);
+        ret = snprintf(strT2, sizeof(strT2), "%d",data->tubeWW[0]);
+        assert(ret != -1);
+        ret = snprintf(strT3, sizeof(strT3), "%d", data->tubeMW[1]);
+        assert(ret != -1);
           
-      exit(EXIT_FAILURE);
-      
+
+        ret = execl("./worker", "worker", strParam,  strT1, strT2, strT3, (char *)NULL);
+        myassert(ret != -1, "erreur execl");
+            
+        exit(EXIT_FAILURE);
+        
+      }
+      //mettre ce qu'il y a au dessus 
     }
     else {
-      wait(pid);
+      //peut etre faire un ftok 
+      int order = data->order;
+      write (data->tubeMW[1], &order, sizeof(int));
+
     }
+
+    // Sinon juste envoyer les données avec le tube MASTER-WORKER 
+    // (car le processus fils devrait tourner en boucle)
+    // mettre le processus avant la boucle loop
+
 
     // - si ensemble vide (pas de premier worker)
     //       . créer le premier worker avec l'élément reçu du client
@@ -315,10 +343,16 @@ void orderInsert(Data *data)
     //       . envoyer au premier worker ordre insertion (cf. master_worker.h)
     //       . envoyer au premier worker l'élément à insérer
     // - recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
-    //_exit(pid);
 
     ret = read(data->tubeMW[0], &answer, sizeof(int));
     assert(ret != -1);
+
+    
+
+    if (answer == MW_ANSWER_INSERT){
+      MW.isGrandWorkerEmpty = false; // si le worker renvoi une valeur ca veut dire
+    }                                // que le premier worker a bien été créé (donc var = nonVide)
+
 
     printf("[MASTER] Accusé de reception : %d\n", answer);
     

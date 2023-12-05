@@ -30,10 +30,13 @@
 // Vous pouvez mettre ici des informations/fonctions soit communes au master et au
 // worker, soit liées aux deux :
 // . structures de données
+ typedef struct {
+    bool isGrandWorkerEmpty;
+} masterWorker;
 // . libération/initialisation de ressources (sémaphores, tubes, ...)
 // . communications
 // . lancement d'un worker
-bool isGrandMasterEmpty;
+
 //END TODO
 
 #endif
