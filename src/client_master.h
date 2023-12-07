@@ -35,10 +35,7 @@
 #include <pthread.h> // rajouté
 
 // . structures de données
-typedef struct {
-    int tube;
-    pthread_mutex_t mutexMiddle;
-} DataMiddle; //je pense qu'on peut en avoir besoin plus tard
+
 
 typedef struct {
 
@@ -50,6 +47,8 @@ typedef struct {
     int nbThreads; // pour CM_ORDER_LOCAL
 
 } Parametres;
+
+
 
 // . création/libération/initialisation de ressources (sémaphores, tubes, ...)
 #define MA_CLE1 23  

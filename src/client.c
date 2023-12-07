@@ -13,7 +13,6 @@
 
 #include "utils.h"
 #include "myassert.h"
-#include "assert.h" //rajouté 
 
 #include "client_master.h"
 
@@ -285,7 +284,8 @@ void sendData(const Data *data)
     // - envoi de l'ordre au master (cf. CM_ORDER_* dans client_master.h)
     int order = data->order;
     int ret = write(tubeClientMaster, &order, sizeof(int));
-    assert (ret !=1);
+    myassert(ret!=1, "write erreur");
+
 
     if (order == CM_ORDER_INSERT || order == CM_ORDER_EXIST){
         Parametres par;
@@ -327,15 +327,22 @@ void receiveAnswer(const Data *data)
 
     //TODO
     // - récupération de l'accusé de réception du master (cf. CM_ANSWER_* dans client_master.h)
-    int order;
+    int order, param;
     int ret = read(tubeMasterClient, &order, sizeof(int));
-    assert(ret!=1);
-    
-    // - selon l'ordre et l'accusé de réception :
-    //      . récupération de données supplémentaires du master si nécessaire
-    // - affichage du résultat    
+    myassert(ret!=1, "read erreur");
+
+    if (order == CM_ANSWER_HOW_MANY_OK || order == CM_ANSWER_MINIMUM_OK || order == CM_ANSWER_MAXIMUM_OK  || order == CM_ANSWER_SUM_OK){
+        int ret = read(tubeMasterClient, &param, sizeof(float));
+        myassert(ret!=1, "read erreur");
+        printf("[CLIENT] résultat : %g\n", param);
+    } 
 
     printf("[CLIENT] accusé de reception : %d \n", order);
+
+    // - selon l'ordre et l'accusé de réception :
+    //      . récupération de données supplémentaires du master si nécessaire
+    // - affichage du résultat  
+    
     //END TODO
 }
 
@@ -369,7 +376,8 @@ int main(int argc, char * argv[])
 
         struct sembuf operation = {0, -1, 0};
         ret = semop(sem1, &operation, 1);
-        assert(ret != -1);
+        myassert(ret!=1, "read erreur");
+
         
         //       . pour empêcher que 2 clients communiquent simultanément
         //       . le mutex est déjà créé par le master
@@ -377,10 +385,11 @@ int main(int argc, char * argv[])
 
 
         int tubeClientMaster = open("tubeCM", O_WRONLY);
-        assert(tubeClientMaster !=1);
+        myassert(ret!=1, "open erreur");
+
 
         int tubeMasterClient = open("tubeMC", O_RDONLY);
-        assert(tubeMasterClient !=1);
+        myassert(ret!=1, "open erreur");
 
         data.tubeCM = tubeClientMaster;
         data.tubeMC = tubeMasterClient;
@@ -396,21 +405,22 @@ int main(int argc, char * argv[])
 
         // - libérer les ressources (fermeture des tubes, ...)
         ret = close(tubeClientMaster);
-        assert(ret!=1);
+        myassert(ret!=1, "close erreur");
         ret = close(tubeMasterClient);      //
-        assert(ret!=1);
+        myassert(ret!=1, "close erreur");
         
         // - débloquer le master grâce à un second sémaphore (cf. ci-dessous)
 
         struct sembuf operation2 = {0, +1, 0};
         ret = semop(sem2, &operation2, 1);
-        assert(ret!=1);
+        myassert(ret!=1, "operation2 erreur");
 
         // - sortir de la section critique
 
         struct sembuf operation1 = {0, +1, 0};
         ret = semop(sem1, &operation1, 1);
-        assert(ret!=1);
+                myassert(ret!=1, "operation1 erreur");
+
         
         // Une fois que le master a envoyé la réponse au client, il se bloque
         // sur un sémaphore ; le dernier point permet donc au master de continuer

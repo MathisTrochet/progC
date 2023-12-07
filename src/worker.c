@@ -23,6 +23,7 @@ typedef struct
     // données internes (valeur de l'élément, cardinalité)
     float elt;
     int order;
+    int cardi;
     // communication avec le père (2 tubes) et avec le master (1 tube en écriture)
     int fdIn;
     int fdOut;
@@ -51,6 +52,11 @@ static void usage(const char *exeName, const char *message)
     if (message != NULL)
         fprintf(stderr, "message : %s\n", message);
     exit(EXIT_FAILURE);
+}
+
+void fermetureTubes(Data *data){
+   int ret = close(data->fdToMaster);
+  myassert(ret != -1, "close tube failure"); 
 }
 
 static void parseArgs(int argc, char * argv[], Data *data)
@@ -107,6 +113,7 @@ static void howManyAction(Data *data)
     //TODO
     // - traiter les cas où les fils n'existent pas
     // - pour chaque fils
+    
     //       . envoyer ordre howmany (cf. master_worker.h)
     //       . recevoir accusé de réception (cf. master_worker.h)
     //       . recevoir deux résultats (nb elts, nb elts distincts) venant du fils
@@ -121,6 +128,7 @@ static void howManyAction(Data *data)
  ************************************************************************/
 static void minimumAction(Data *data)
 {
+  int ret ;
     TRACE3("    [worker (%d, %d) {%g}] : ordre minimum\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
@@ -128,6 +136,19 @@ static void minimumAction(Data *data)
     // - si le fils gauche n'existe pas (on est sur le minimum)
     //       . envoyer l'accusé de réception au master (cf. master_worker.h)
     //       . envoyer l'élément du worker courant au master
+    if (true){
+      int answer = MW_ANSWER_MINIMUM;
+      ret = write(data->fdToMaster, &answer, sizeof(int)); 
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+      ret = write(data->fdToMaster, &(data->elt), sizeof(float));
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+    }
+    else {
+      int answer = MW_ORDER_MINIMUM;
+      ret = write(data->fdIn, &answer, sizeof(int)); 
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+    }
+    
     // - sinon
     //       . envoyer au worker gauche ordre minimum (cf. master_worker.h)
     //       . note : c'est un des descendants qui enverra le résultat au master
@@ -140,11 +161,30 @@ static void minimumAction(Data *data)
  ************************************************************************/
 static void maximumAction(Data *data)
 {
+  int ret ;
     TRACE3("    [worker (%d, %d) {%g}] : ordre maximum\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
-    // cf. explications pour le minimum
+    // - si le fils droit n'existe pas (on est sur le maximum)
+    //       . envoyer l'accusé de réception au master (cf. master_worker.h)
+    //       . envoyer l'élément du worker courant au master
+    if (true){
+      int answer = MW_ANSWER_MAXIMUM;
+      ret = write(data->fdToMaster, &answer, sizeof(int)); 
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+      ret = write(data->fdToMaster, &(data->elt), sizeof(float));
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+    }
+    else {  
+      int answer = MW_ORDER_MAXIMUM;
+      ret = write(data->fdIn, &answer, sizeof(int)); 
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+    }
+    
+    // - sinon
+    //       . envoyer au worker droit ordre minimum (cf. master_worker.h)
+    //       . note : c'est un des descendants qui enverra le résultat au master
     //END TODO
 }
 
@@ -159,6 +199,14 @@ static void existAction(Data *data)
 
     //TODO
     // - recevoir l'élément à tester en provenance du père
+    int answer;
+    int order = data->order;
+    int param;
+    read(data->fdOut, &param, sizeof(float));
+
+    if (param == data->elt){
+      answer = 
+    }
     // - si élément courant == élément à tester
     //       . envoyer au master l'accusé de réception de réussite (cf. master_worker.h)
     //       . envoyer cardinalité de l'élément courant au master
@@ -209,8 +257,9 @@ static void insertAction(Data *data)
     printf("\nje suis là\n");
 
     int order = data->order;
-    int element = data->elt;
-    write(data->fdOut, &order, sizeof(int)); // envoyer accusé de reception 
+    int param;
+    read(data->fdOut, &param, sizeof(float));
+    write(data->fdToMaster, &order, sizeof(int)); // envoyer accusé de reception 
     //TODO
     // - recevoir l'élément à insérer en provenance du père
     // - si élément courant == élément à tester
@@ -262,21 +311,19 @@ void loop(Data *data)
 {
     int ret;
     bool end = false;
-    int order;
 
-    int sem3 = data->sem3;
 
-        struct sembuf operation3 = {0, -1, 0}; 
-        ret = semop(sem3, &operation3, 1);
-        myassert(ret != -1, "erreur operation3"); 
-
-    read(data->fdOut, &order, sizeof(int));
-    printf("[WORKER] -> ||%d||",order);
-
-    while (! end)
+    while (!end)
     {
-        //int order = MW_ORDER_STOP;   //TODO pour que ça ne boucle pas, mais recevoir l'ordre du père
-        switch(order)
+        int ret = read(data->fdOut, &data->order, sizeof(int));
+        myassert(ret!=-1, "read marche pas");
+        printf("\n[WORKER] order-> ||%d|| - ", data->order);
+
+
+        TRACE3("    [LOOP (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);
+
+        //int order = MW_ORDER_STOP;   //TODO pour que ça ne boucle pas, mais recevoir l'ordre du père 
+        switch(data->order)
         {
           case MW_ORDER_STOP:
             stopAction(data);
@@ -309,11 +356,21 @@ void loop(Data *data)
             break;
         }
 
+/*
+          struct sembuf operation3 = {0, -1, 0}; 
+          ret = semop(sem3, &operation3, 1);
+          myassert(ret != -1, "erreur operation3"); 
+*/
+        
+
         
 
         TRACE3("    [worker (%d, %d) {%g}] : fin ordre\n", getpid(), getppid(), data->elt);
     }
 }
+
+
+
 
 
 /************************************************************************
@@ -323,33 +380,31 @@ void loop(Data *data)
 int main(int argc, char * argv[])
 {
     Data data;
-    int ret, key3, sem3;
+    int ret;
     parseArgs(argc, argv, &data);
     TRACE3("    [worker (%d, %d) {%g}] : début worker\n", getpid(), getppid(), data.elt);
 
-    int tubeWorkerMaster = data.fdToMaster;
-    myassert(tubeWorkerMaster!= -1, "tubeWorkerMaster mal recupéré");
-
     //TRACE3("||(%d, %d) {%d}||\n", answer, answer, answer);
-
+/*
     key3 = ftok(MON_FICHIER2, MA_CLE3);
     sem3 = semget(key3, 1, 0); // on recupere le semaphore pour bloquer la loop
     data.sem3 = sem3;
+    */
+
 
 
     //TODO envoyer au master l'accusé de réception d'insertion (cf. master_worker.h)
     int answer = MW_ANSWER_INSERT;
-    ret = write(tubeWorkerMaster, &answer, sizeof(int));
+    ret = write(data.fdToMaster, &answer, sizeof(int));
     myassert(ret != -1, "write pas bon");
 
     //TODO note : en effet si je suis créé c'est qu'on vient d'insérer un élément : moi
 
+
     loop(&data);
 
     //TODO fermer les tubes
-    ret = close(tubeWorkerMaster);
-    myassert(ret != -1, "close tube failure"); 
-
+    fermetureTubes(&data);
 
     TRACE3("    [worker (%d, %d) {%g}] : fin worker\n", getpid(), getppid(), data.elt);
     return EXIT_SUCCESS;

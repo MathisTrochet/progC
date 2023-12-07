@@ -38,6 +38,9 @@
  typedef struct {
     bool isGrandWorkerEmpty;
 } masterWorker;
+
+
+
 // . libération/initialisation de ressources (sémaphores, tubes, ...)
 #define MON_FICHIER2 "master_worker.h"
 #define MA_CLE3 40 
