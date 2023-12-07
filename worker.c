@@ -304,14 +304,19 @@ static void insertAction(Data *data)
     myassert(ret != -1, "read erreur");    
     //TODO
 
-    printf("[WORKER] %d-> param a tester: %d\n", getpid(), param);
-    printf("[WORKER] %d-> element: %d\n", getpid(), data->elt);
+    printf("[WORKER] %d-> param a tester: %g\n", getpid(), param);
+    printf("[WORKER] %d-> element: %g\n", getpid(), data->elt);
+    printf("[WORKER] %d-> FG: %d\n", getpid(), data->FG[0]); 
+    printf("[WORKER] %d-> FD: %d\n", getpid(), data->FD[1]); 
+            
     
     if (param == data->elt){
       printf("[WORKER] CECI EST UN TEST");
       order = MW_ANSWER_INSERT;
       data->cardi = data->cardi + 1;
-      printf("[WORKER] %d-> cardinal: %d\n", getpid(), data->cardi);
+      printf("[WORKER] %d-> cardinal: %d\n", getpid(), data->cardi); 
+      
+
       //printf("CARDINALITE AUGMENTE : %d ", data->cardi);
       write(data->fdToMaster, &order, sizeof(int));
       myassert(ret != -1, "read erreur");
@@ -319,20 +324,23 @@ static void insertAction(Data *data)
     else {
       if (param < data->elt && data->FG == NULL){
             char strParam[20], strT1[20], strT2[20], strT3[20];
-            pid_t pid = fork();                                            /* --------creation processus pour creer le worker --------*/
-            myassert(pid != 1, "erreur pid");
-            if (pid == 0){
-              int tubeFG[2];
 
-              ret = pipe(tubeFG);
-              data->FG = tubeFG;
-              myassert(ret != -1, "tube anonyme erreur");
+            int tubeFG[2];
+            ret = pipe(tubeFG);
+            (*data).FG = tubeFG;
+
+            myassert(ret != -1, "tube anonyme erreur");
+            pid_t pid = fork();                                            /* --------creation processus pour creer le worker --------*/
+            myassert(pid != -1, "erreur pid");
+            if (pid == 0){
+
+              
 
               ret = snprintf(strParam, sizeof(strParam), "%f", param);
               myassert(ret != -1, "snprintf erreur");
-              ret = snprintf(strT1, sizeof(strT1), "%d", data->FG[1]);
+              ret = snprintf(strT1, sizeof(strT1), "%d", tubeFG[1]);
               myassert(ret != -1, "snprintf erreur");
-              ret = snprintf(strT2, sizeof(strT2), "%d",data->FG[0]);
+              ret = snprintf(strT2, sizeof(strT2), "%d", tubeFG[0]);
               myassert(ret != -1, "snprintf erreur");
               ret = snprintf(strT3, sizeof(strT3), "%d", data->fdToMaster);
               myassert(ret != -1, "snprintf erreur");
@@ -344,25 +352,29 @@ static void insertAction(Data *data)
               exit(EXIT_FAILURE);
               
             }
+            
 
       }
       else{
         if (param > data->elt && data->FD == NULL){
             char strParam[20], strT1[20], strT2[20], strT3[20];
+
+            int tubeFD[2];
+            ret = pipe(tubeFD);
+            (*data).FD = tubeFD;
+
+            myassert(ret != -1, "tube anonyme erreur");
             pid_t pid = fork();                                            /* --------creation processus pour creer le worker --------*/
             myassert(pid != 1, "erreur pid");
             if (pid == 0){
-              int tubeFD[2];
-
-              ret = pipe(tubeFD);
-              data->FD = tubeFD;
-              myassert(ret != -1, "tube anonyme erreur");
+        
+              
 
               ret = snprintf(strParam, sizeof(strParam), "%f", param);
               myassert(ret != -1, "snprintf erreur");
-              ret = snprintf(strT1, sizeof(strT1), "%d", data->FD[1]);
+              ret = snprintf(strT1, sizeof(strT1), "%d", tubeFD[1] );
               myassert(ret != -1, "snprintf erreur");
-              ret = snprintf(strT2, sizeof(strT2), "%d",data->FD[0]);
+              ret = snprintf(strT2, sizeof(strT2), "%d", tubeFD[0]);
               myassert(ret != -1, "snprintf erreur");
               ret = snprintf(strT3, sizeof(strT3), "%d", data->fdToMaster);
               myassert(ret != -1, "snprintf erreur");
@@ -374,16 +386,21 @@ static void insertAction(Data *data)
               exit(EXIT_FAILURE);
               
             }
+            
 
       }
       else{
         if (param < data->elt){
-          write(data->fdIn, &order, sizeof(int));
-          write(data->fdIn, &param, sizeof(float));
+          write(data->FG[1], &order, sizeof(int));
+          myassert(ret != -1, "write erreur");
+          write(data->FG[1], &param, sizeof(float));
+          myassert(ret != -1, "write erreur");
         }
         else {
-          write(data->fdIn, &order, sizeof(int));
-          write(data->fdIn, &param, sizeof(float));
+          write(data->FD[1], &order, sizeof(int));
+          myassert(ret != -1, "write erreur");
+          write(data->FD[1], &param, sizeof(float));
+          myassert(ret != -1, "write erreur");
         }
 
       }   
@@ -443,12 +460,13 @@ void loop(Data *data)
 
     while (!end)
     {
+        TRACE3("    [LOOP - je m'apprete a lire (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);
         int ret = read(data->fdOut , &data->order, sizeof(int));
         myassert(ret!=-1, "read marche pas");
         //printf("\n[WORKER] order-> ||%d|| - ", data->order);
 
 
-        //TRACE3("    [LOOP (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);
+        
 
         //int order = MW_ORDER_STOP;   //TODO pour que ça ne boucle pas, mais recevoir l'ordre du père 
         switch(data->order)
