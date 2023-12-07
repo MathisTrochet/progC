@@ -35,11 +35,6 @@
 // Vous pouvez mettre ici des informations/fonctions soit communes au master et au
 // worker, soit liées aux deux :
 // . structures de données
- typedef struct {
-    bool isGrandWorkerEmpty;
-} masterWorker;
-
-
 
 // . libération/initialisation de ressources (sémaphores, tubes, ...)
 #define MON_FICHIER2 "master_worker.h"

@@ -205,7 +205,29 @@ static void existAction(Data *data)
     read(data->fdOut, &param, sizeof(float));
 
     if (param == data->elt){
-      answer = 
+      answer = MW_ANSWER_EXIST_YES;
+      write(data->fdToMaster, &answer, sizeof(int));
+      write(data->fdToMaster, &data->cardi, sizeof(int));
+    }
+    else {
+      if (param < data->elt && data->FG == NULL){
+        //envoyer au master echec
+      }
+      else {
+        if (param > data->elt && data->FG == NULL){ 
+          //envoyer au master echec
+        }
+        else {
+          if (param < data->elt ){
+            //envoyer au master et autre 
+          }
+          else {
+            if (param > data->elt ){
+              //envoyer au master et autre
+            }
+        }
+        }
+      }
     }
     // - si élément courant == élément à tester
     //       . envoyer au master l'accusé de réception de réussite (cf. master_worker.h)
@@ -320,7 +342,7 @@ void loop(Data *data)
         printf("\n[WORKER] order-> ||%d|| - ", data->order);
 
 
-        TRACE3("    [LOOP (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);
+        //TRACE3("    [LOOP (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);
 
         //int order = MW_ORDER_STOP;   //TODO pour que ça ne boucle pas, mais recevoir l'ordre du père 
         switch(data->order)

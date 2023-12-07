@@ -207,7 +207,7 @@ void orderStop(Data *data)
     
     // - traiter le cas ensemble vide (pas de premier worker) check
     // - envoyer au premier worker ordre de fin (cf. master_worker.h) check
-    // - attendre sa fin
+    // - attendre sa fin -> (semaphore a mettre)
     // - envoyer l'accusé de réception au client (cf. client_master.h) check
     int tubeMasterClient = data->tubeMC;
     
@@ -339,7 +339,7 @@ void orderMaximum(Data *data)
 void orderExist(Data *data)
 {
   int order = CM_ANSWER_EXIST_YES;
-  int ret, result;
+  int ret, result, answer;
     TRACE0("[master] ordre existence\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
@@ -348,30 +348,46 @@ void orderExist(Data *data)
     
     // - si ensemble vide (pas de premier worker)
     //       . envoyer l'accusé de réception dédié au client (cf. client_master.h)
-    if (true){
+    if (data->isGrandWorkerEmpty){
        order = CM_ANSWER_EXIST_NO;
-    }   
+       ret = write(data->tubeMC, &order, sizeof(int));
+       myassert(ret != -1, "tube masterClient ecriture erreur");
+    } 
+    else {
+      ret = write(data->tubeWW[1], &order, sizeof(int));
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+      ret = write(data->tubeWW[1], &data->elt, sizeof(int));
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+
+      ret = read(data->tubeMW[0], &answer, sizeof(int));        // recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
+      myassert(ret != -1, "tube masterClient lecture erreur");
+      
+      if (answer == MW_ANSWER_EXIST_NO){
+        ret = write(data->tubeMC, &order, sizeof(int));           // envoyer l'accusé de réception au client (cf. client_master.h)
+        myassert(ret != -1, "tube masterClient ecriture erreur");
+      }
+      else{
+        ret = write(data->tubeMC, &order, sizeof(int));           // envoyer l'accusé de réception au client (cf. client_master.h)
+        myassert(ret != -1, "tube masterClient ecriture erreur");
+        ret = write(data->tubeMC, &result, sizeof(float));
+        myassert(ret != -1, "tube masterClient ecriture erreur");
+      }
+
+      ret = read(data->tubeMW[0], &result, sizeof(float));        // recevoir résultat (la valeur) venant du worker concerné
+      myassert(ret != -1, "tube masterClient lecture erreur");
+
+      
+    }
     // - sinon
     //       . envoyer au premier worker ordre existence (cf. master_worker.h)
     //       . envoyer au premier worker l'élément à tester
     //       . recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
     //       . si élément non présent
     //             . envoyer l'accusé de réception dédié au client (cf. client_master.h)
-
-    int tubeMasterClient = data->tubeMC;
-    
-    if (false){
-      ret = write(tubeMasterClient, &order, sizeof(int));
-      myassert(ret != -1, "tube ecriture erreur");
-    }
     
     //       . sinon
     //             . recevoir résultat (une quantité) venant du worker concerné
     //             . envoyer l'accusé de réception au client (cf. client_master.h)
-    if (true){
-      ret = write(tubeMasterClient, &order, sizeof(int));
-      myassert(ret != -1, "tube ecriture erreur");
-    }
     //             . envoyer le résultat au client
     ret = write(data->tubeMC, &order, sizeof(int));
     myassert(ret != -1, "tube masterClient ecriture erreur");
@@ -415,19 +431,15 @@ void orderInsert(Data *data)
     TRACE0("[master] ordre insertion\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
-    //TODO
-
     // - recevoir l'élément à insérer en provenance du client 
-    int param = data->elt, order=data->order;
+    int param = data->elt, order=data->order, ret, answer=0;
     char strParam[20], strT1[20], strT2[20], strT3[20];
     snprintf(strParam, sizeof(strParam), "%d", param);
-
-    int ret, answer=0;
 
     //printf("[MASTER] -> ||%d||",order);
 
     if (data->isGrandWorkerEmpty == true ){ //ensemble vide
-      pid_t pid = fork();
+      pid_t pid = fork();                                            /* --------creation processus pour creer le worker --------*/
       myassert(pid != 1, "erreur pid");
       if (pid == 0){
 
@@ -443,10 +455,6 @@ void orderInsert(Data *data)
         ret = snprintf(strT3, sizeof(strT3), "%d", data->tubeMW[1]);
         myassert(ret != -1, "snprintf erreur");
         //printf("[MASTER] -> ||%d||",order);
-
-        
-
-        //write (data->tubeWW[1], &order, sizeof(int)); probleme a la con pas de besoin de ça bordel
         
 
         ret = execl("./worker", "worker", strParam,  strT1, strT2, strT3, (char *)NULL);
@@ -463,9 +471,6 @@ void orderInsert(Data *data)
       write (data->tubeWW[1], &order, sizeof(int));
       write (data->tubeWW[1], &param, sizeof(int));
     }
-
-    
-
     // Sinon juste envoyer les données avec le tube MASTER-WORKER 
     // (car le processus fils devrait tourner en boucle)
 
@@ -476,19 +481,15 @@ void orderInsert(Data *data)
     //       . envoyer au premier worker l'élément à insérer
     // - recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
 
-    
-
     ret = read(data->tubeMW[0], &answer, sizeof(int));
     myassert(ret != -1, "read erreur");
 
-    
     if (answer == MW_ANSWER_INSERT){
       (*data).isGrandWorkerEmpty = false; // si le worker renvoi une valeur ca veut dire
     }                                // que le premier worker a bien été créé (donc var = nonVide)
 
     printf("[MASTER] Accusé de reception : %d\n", answer);
-    
-    
+     
     // - envoyer l'accusé de réception au client (cf. client_master.h)
 
     int tubeMasterClient = data->tubeMC;
