@@ -109,9 +109,17 @@ static void howManyAction(Data *data)
 {
     TRACE3("    [worker (%d, %d) {%g}] : ordre how many\n", getpid(), getppid(),  data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
-
+    int ret;
+    int result = data->cardi;
+    int answer = MW_ANSWER_HOW_MANY;
     //TODO
     // - traiter les cas où les fils n'existent pas
+    if(data->FD == NULL && data->FG == NULL){
+      ret = write(data->fdToMaster, &answer, sizeof(int));
+      myassert(ret != -1, "Erreur ecriture tube Worker Master");
+      ret = write(data->fdToMaster, &result, sizeof(int));
+      myassert(ret != -1, "Erreur ecriture tube Worker Master");
+    }
     // - pour chaque fils
     
     //       . envoyer ordre howmany (cf. master_worker.h)
@@ -259,6 +267,7 @@ static void sumAction(Data *data)
     int ret;
     float result = data->elt;
     int answer = MW_ANSWER_SUM;
+    int order = MW_ORDER_SUM;
 
     if(data->cardi > 1){
       result *= data->cardi;
@@ -273,7 +282,24 @@ static void sumAction(Data *data)
       ret = write(data->fdToMaster, &result, sizeof(float));
       myassert(ret != -1, "Erreur ecriture tube Worker Master");
     }
+    else {
+      printf("\nTEST\n");
+      if(data->FD != NULL) {
+        ret = write(data->fdOut, &order, sizeof(int));
+        myassert(ret !=-1, "Erreur ecriture tube Worker Droit");
 
+        ret = read(data->fdOut, &answer, sizeof(int));
+        myassert(ret !=-1, "Erreur lecture tube Worker Droit");
+
+        ret = read(data->fdOut, &result, sizeof(float));
+        myassert(ret !=-1, "Erreur lecture tube Worker Droit");
+      }
+      ret = write(data->fdIn, &answer, sizeof(int));
+      myassert(ret !=-1, "Erreur ecriture pere");
+
+      ret = write(data->fdIn, &result, sizeof(float));
+      myassert(ret !=-1, "Erreur ecriture pere");
+    }
 
     //TODO
     // - traiter les cas où les fils n'existent pas

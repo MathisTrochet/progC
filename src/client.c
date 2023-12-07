@@ -329,14 +329,20 @@ void receiveAnswer(const Data *data)
     // - récupération de l'accusé de réception du master (cf. CM_ANSWER_* dans client_master.h)
     int order;
     float param;
+    int how;
     int ret = read(tubeMasterClient, &order, sizeof(int));
     myassert(ret!=1, "read erreur");
 
-    if (order == CM_ANSWER_HOW_MANY_OK || order == CM_ANSWER_MINIMUM_OK || order == CM_ANSWER_MAXIMUM_OK  || order == CM_ANSWER_SUM_OK){
+    if (order == CM_ANSWER_MINIMUM_OK || order == CM_ANSWER_MAXIMUM_OK  || order == CM_ANSWER_SUM_OK){
         int ret = read(tubeMasterClient, &param, sizeof(float));
         myassert(ret!=1, "read erreur");
         printf("[CLIENT] résultat : %g\n", param);
     } 
+    if (order == CM_ANSWER_HOW_MANY_OK ){
+        int ret = read(tubeMasterClient, &how, sizeof(int));
+        myassert(ret!=1, "read erreur");
+        printf("[CLIENT] résultat : %d\n", how);
+    }
 
     printf("[CLIENT] accusé de reception : %d \n", order);
 

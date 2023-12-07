@@ -223,28 +223,34 @@ void orderStop(Data *data)
  ************************************************************************/
 void orderHowMany(Data *data)
 {
-  int order = CM_ANSWER_HOW_MANY_OK;
-  //int results;
-    float result;
-    int ret;
-    TRACE0("[master] ordre how many\n");
-    myassert(data != NULL, "il faut l'environnement d'exécution");
+  int order = MW_ORDER_HOW_MANY;
+  int result;
+  int ret, answer;
+  TRACE0("[master] ordre how many\n");
+  myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
     // - traiter le cas ensemble vide (pas de premier worker)
-    if (data->isGrandWorkerEmpty){
+  if (data->isGrandWorkerEmpty){
       result = 0;
-    }
+  }
     // - envoyer au premier worker ordre howmany (cf. master_worker.h)
+  else {
+    ret = write(data->tubeWW[1], &order, sizeof(int));
+    myassert(ret != -1, "tube masterClient ecriture erreur");
 
+    ret = read(data->tubeMW[0], &answer, sizeof(int));        // recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
+    myassert(ret != -1, "tube masterClient lecture erreur");
+    ret = read(data->tubeMW[0], &result, sizeof(int));        // recevoir résultat (la valeur) venant du worker concerné
+    myassert(ret != -1, "tube masterClient lecture erreur");
+  }
     // - recevoir accusé de réception venant du premier worker (cf. master_worker.h)
     // - recevoir résultats (deux quantités) venant du premier worker
     // - envoyer l'accusé de réception au client (cf. client_master.h)
-    
-    order = CM_ANSWER_HOW_MANY_OK ;
+    order = CM_ANSWER_HOW_MANY_OK;
     ret = write(data->tubeMC, &order, sizeof(int));
     myassert(ret != -1, "tube masterClient ecriture erreur");
-    ret = write(data->tubeMC, &result, sizeof(float));
+    ret = write(data->tubeMC, &result, sizeof(int));
     myassert(ret != -1, "tube masterClient ecriture erreur");
     // - envoyer les résultats au client
     //END TODO
