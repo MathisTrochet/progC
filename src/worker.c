@@ -27,7 +27,7 @@ typedef struct
     // communication avec le père (2 tubes) et avec le master (1 tube en écriture)
     int fdIn;
     int fdOut;
-    int fdToMaster;
+    int fdToMaster; 
 
     int sem3;
 
@@ -276,17 +276,19 @@ static void insertAction(Data *data)
     TRACE3("    [worker (%d, %d) {%g}] : ordre insert\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
-    printf("\nje suis là\n");
+    //printf("\nje suis là\n");
 
     int order = data->order;
     int param, ret;
-    read(data->fdOut, &param, sizeof(float)); // envoyer accusé de reception 
+    ret = read(data->fdOut, &param, sizeof(float)); // envoyer accusé de reception 
+    myassert(ret != -1, "read erreur");    
     //TODO
     if (param == data->elt){
       order = MW_ANSWER_INSERT;
       data->cardi = data->cardi + 1;
       //printf("CARDINALITE AUGMENTE : %d ", data->cardi);
       write(data->fdToMaster, &order, sizeof(int));
+      myassert(ret != -1, "read erreur");
     }
     else {
       if (param < data->elt && data->FG == NULL){
@@ -297,8 +299,11 @@ static void insertAction(Data *data)
               int tubeFG[2];
 
               ret = pipe(tubeFG);
+              data->FG = tubeFG;
               myassert(ret != -1, "tube anonyme erreur");
 
+              ret = snprintf(strParam, sizeof(strParam), "%d", param);
+              myassert(ret != -1, "snprintf erreur");
               ret = snprintf(strT1, sizeof(strT1), "%d", data->FG[1]);
               myassert(ret != -1, "snprintf erreur");
               ret = snprintf(strT2, sizeof(strT2), "%d",data->FG[0]);
@@ -316,14 +321,15 @@ static void insertAction(Data *data)
 
       }
       else{
-        if (param > data->elt && data->FG == NULL){
+        if (param > data->elt && data->FD == NULL){
             char strParam[20], strT1[20], strT2[20], strT3[20];
             pid_t pid = fork();                                            /* --------creation processus pour creer le worker --------*/
             myassert(pid != 1, "erreur pid");
             if (pid == 0){
-              int tubeFG[2];
+              int tubeFD[2];
 
-              ret = pipe(tubeFG);
+              ret = pipe(tubeFD);
+              data->FD = tubeFD;
               myassert(ret != -1, "tube anonyme erreur");
 
               ret = snprintf(strT1, sizeof(strT1), "%d", data->FD[1]);
@@ -342,6 +348,17 @@ static void insertAction(Data *data)
             }
 
       }
+      else{
+        if (param < data->elt){
+          write(data->fdIn, &order, sizeof(int));
+          write(data->fdIn, &param, sizeof(float));
+        }
+        else {
+          write(data->fdIn, &order, sizeof(int));
+          write(data->fdIn, &param, sizeof(float));
+        }
+
+      }   
       }
       
     }
@@ -400,7 +417,7 @@ void loop(Data *data)
     {
         int ret = read(data->fdOut , &data->order, sizeof(int));
         myassert(ret!=-1, "read marche pas");
-        printf("\n[WORKER] order-> ||%d|| - ", data->order);
+        //printf("\n[WORKER] order-> ||%d|| - ", data->order);
 
 
         //TRACE3("    [LOOP (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);

@@ -467,7 +467,7 @@ void orderInsert(Data *data)
     }
 
     else {
-      printf("le bigworker n'est plus vide ");
+      //printf("le bigworker n'est plus vide ");
       write (data->tubeWW[1], &order, sizeof(int));
       myassert(ret != -1, "tube ecriture erreur");
       write (data->tubeWW[1], &param, sizeof(int));
@@ -482,9 +482,12 @@ void orderInsert(Data *data)
     //       . envoyer au premier worker l'élément à insérer
     // - recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
 
+    TRACE0("[master] AVANT READ\n");
+
     ret = read(data->tubeMW[0], &answer, sizeof(int));
     myassert(ret != -1, "read erreur");
-
+    TRACE0("[master] APRES READ\n");
+    
     if (answer == MW_ANSWER_INSERT){
       (*data).isGrandWorkerEmpty = false; // si le worker renvoi une valeur ca veut dire
     }                                // que le premier worker a bien été créé (donc var = nonVide)
@@ -568,7 +571,7 @@ void loop(Data *data)
         //              RECUPERATION DONNEE CLIENT
         ret = read(tubeClientMaster, &order, sizeof(int)); 
         myassert (ret != -1, "Erreur lors de la lecture du tube");
-        printf("|%d|\n", order);
+        printf("|%d|", order);
 
         //on stock l'ordre dans data
 

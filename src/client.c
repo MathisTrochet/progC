@@ -327,7 +327,8 @@ void receiveAnswer(const Data *data)
 
     //TODO
     // - récupération de l'accusé de réception du master (cf. CM_ANSWER_* dans client_master.h)
-    int order, param;
+    int order;
+    float param;
     int ret = read(tubeMasterClient, &order, sizeof(int));
     myassert(ret!=1, "read erreur");
 
