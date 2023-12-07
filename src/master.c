@@ -379,7 +379,7 @@ void orderExist(Data *data)
 
       ret = read(data->tubeMW[0], &result, sizeof(float));        // recevoir résultat (la valeur) venant du worker concerné
       myassert(ret != -1, "tube masterClient lecture erreur");
-
+    
       
     }
     // - sinon

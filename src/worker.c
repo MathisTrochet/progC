@@ -303,9 +303,15 @@ static void insertAction(Data *data)
     ret = read(data->fdOut, &param, sizeof(float)); // envoyer accusé de reception 
     myassert(ret != -1, "read erreur");    
     //TODO
+
+    printf("[WORKER] %d-> param a tester: %d\n", getpid(), param);
+    printf("[WORKER] %d-> element: %d\n", getpid(), data->elt);
+    
     if (param == data->elt){
+      printf("[WORKER] CECI EST UN TEST");
       order = MW_ANSWER_INSERT;
       data->cardi = data->cardi + 1;
+      printf("[WORKER] %d-> cardinal: %d\n", getpid(), data->cardi);
       //printf("CARDINALITE AUGMENTE : %d ", data->cardi);
       write(data->fdToMaster, &order, sizeof(int));
       myassert(ret != -1, "read erreur");
