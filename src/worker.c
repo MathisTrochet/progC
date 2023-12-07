@@ -169,7 +169,7 @@ static void maximumAction(Data *data)
     // - si le fils droit n'existe pas (on est sur le maximum)
     //       . envoyer l'accusé de réception au master (cf. master_worker.h)
     //       . envoyer l'élément du worker courant au master
-    if (true){
+    if (data->FD == NULL){
       int answer = MW_ANSWER_MAXIMUM;
       ret = write(data->fdToMaster, &answer, sizeof(int)); 
       myassert(ret != -1, "tube masterClient ecriture erreur");
@@ -279,10 +279,72 @@ static void insertAction(Data *data)
     printf("\nje suis là\n");
 
     int order = data->order;
-    int param;
-    read(data->fdOut, &param, sizeof(float));
-    write(data->fdToMaster, &order, sizeof(int)); // envoyer accusé de reception 
+    int param, ret;
+    read(data->fdOut, &param, sizeof(float)); // envoyer accusé de reception 
     //TODO
+    if (param == data->elt){
+      order = MW_ANSWER_INSERT;
+      data->cardi = data->cardi + 1;
+      //printf("CARDINALITE AUGMENTE : %d ", data->cardi);
+      write(data->fdToMaster, &order, sizeof(int));
+    }
+    else {
+      if (param < data->elt && data->FG == NULL){
+            char strParam[20], strT1[20], strT2[20], strT3[20];
+            pid_t pid = fork();                                            /* --------creation processus pour creer le worker --------*/
+            myassert(pid != 1, "erreur pid");
+            if (pid == 0){
+              int tubeFG[2];
+
+              ret = pipe(tubeFG);
+              myassert(ret != -1, "tube anonyme erreur");
+
+              ret = snprintf(strT1, sizeof(strT1), "%d", data->FG[1]);
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT2, sizeof(strT2), "%d",data->FG[0]);
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT3, sizeof(strT3), "%d", data->fdToMaster);
+              myassert(ret != -1, "snprintf erreur");
+              //printf("[MASTER] -> ||%d||",order);
+
+              ret = execl("./worker", "worker", strParam,  strT1, strT2, strT3, (char *)NULL);
+              myassert(ret != -1, "erreur execl");
+                  
+              exit(EXIT_FAILURE);
+              
+            }
+
+      }
+      else{
+        if (param > data->elt && data->FG == NULL){
+            char strParam[20], strT1[20], strT2[20], strT3[20];
+            pid_t pid = fork();                                            /* --------creation processus pour creer le worker --------*/
+            myassert(pid != 1, "erreur pid");
+            if (pid == 0){
+              int tubeFG[2];
+
+              ret = pipe(tubeFG);
+              myassert(ret != -1, "tube anonyme erreur");
+
+              ret = snprintf(strT1, sizeof(strT1), "%d", data->FD[1]);
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT2, sizeof(strT2), "%d",data->FD[0]);
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT3, sizeof(strT3), "%d", data->fdToMaster);
+              myassert(ret != -1, "snprintf erreur");
+              //printf("[MASTER] -> ||%d||",order);
+
+              ret = execl("./worker", "worker", strParam,  strT1, strT2, strT3, (char *)NULL);
+              myassert(ret != -1, "erreur execl");
+                  
+              exit(EXIT_FAILURE);
+              
+            }
+
+      }
+      }
+      
+    }
     // - recevoir l'élément à insérer en provenance du père
     // - si élément courant == élément à tester
     //       . incrémenter la cardinalité courante
@@ -334,10 +396,9 @@ void loop(Data *data)
     int ret;
     bool end = false;
 
-
     while (!end)
     {
-        int ret = read(data->fdOut, &data->order, sizeof(int));
+        int ret = read(data->fdOut , &data->order, sizeof(int));
         myassert(ret!=-1, "read marche pas");
         printf("\n[WORKER] order-> ||%d|| - ", data->order);
 
@@ -376,16 +437,7 @@ void loop(Data *data)
             myassert(false, "ordre inconnu");
             exit(EXIT_FAILURE);
             break;
-        }
-
-/*
-          struct sembuf operation3 = {0, -1, 0}; 
-          ret = semop(sem3, &operation3, 1);
-          myassert(ret != -1, "erreur operation3"); 
-*/
-        
-
-        
+        }       
 
         TRACE3("    [worker (%d, %d) {%g}] : fin ordre\n", getpid(), getppid(), data->elt);
     }
@@ -412,6 +464,9 @@ int main(int argc, char * argv[])
     sem3 = semget(key3, 1, 0); // on recupere le semaphore pour bloquer la loop
     data.sem3 = sem3;
     */
+    data.FD = NULL;
+    data.FG = NULL;
+    data.cardi =0;
 
 
 

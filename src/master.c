@@ -305,7 +305,7 @@ void orderMaximum(Data *data)
     // - si ensemble vide (pas de premier worker)
     //       . envoyer l'accusé de réception dédié au client (cf. client_master.h)
     if (data->isGrandWorkerEmpty){
-       order = CM_ANSWER_MINIMUM_EMPTY;
+       order = CM_ANSWER_MAXIMUM_EMPTY;
        ret = write(data->tubeMC, &order, sizeof(int));
        myassert(ret != -1, "tube masterClient ecriture erreur");
     } 
@@ -469,6 +469,7 @@ void orderInsert(Data *data)
     else {
       printf("le bigworker n'est plus vide ");
       write (data->tubeWW[1], &order, sizeof(int));
+      myassert(ret != -1, "tube ecriture erreur");
       write (data->tubeWW[1], &param, sizeof(int));
     }
     // Sinon juste envoyer les données avec le tube MASTER-WORKER 
