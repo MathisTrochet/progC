@@ -201,7 +201,7 @@ static void existAction(Data *data)
     // - recevoir l'élément à tester en provenance du père
     int answer;
     int order = data->order;
-    int param;
+    float param;
     read(data->fdOut, &param, sizeof(float));
 
     if (param == data->elt){
@@ -279,7 +279,8 @@ static void insertAction(Data *data)
     //printf("\nje suis là\n");
 
     int order = data->order;
-    int param, ret;
+    float param;
+    int ret;
     ret = read(data->fdOut, &param, sizeof(float)); // envoyer accusé de reception 
     myassert(ret != -1, "read erreur");    
     //TODO
@@ -302,7 +303,7 @@ static void insertAction(Data *data)
               data->FG = tubeFG;
               myassert(ret != -1, "tube anonyme erreur");
 
-              ret = snprintf(strParam, sizeof(strParam), "%d", param);
+              ret = snprintf(strParam, sizeof(strParam), "%f", param);
               myassert(ret != -1, "snprintf erreur");
               ret = snprintf(strT1, sizeof(strT1), "%d", data->FG[1]);
               myassert(ret != -1, "snprintf erreur");
@@ -332,6 +333,8 @@ static void insertAction(Data *data)
               data->FD = tubeFD;
               myassert(ret != -1, "tube anonyme erreur");
 
+              ret = snprintf(strParam, sizeof(strParam), "%f", param);
+              myassert(ret != -1, "snprintf erreur");
               ret = snprintf(strT1, sizeof(strT1), "%d", data->FD[1]);
               myassert(ret != -1, "snprintf erreur");
               ret = snprintf(strT2, sizeof(strT2), "%d",data->FD[0]);

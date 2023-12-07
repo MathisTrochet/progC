@@ -225,7 +225,8 @@ void orderHowMany(Data *data)
 {
   int order = CM_ANSWER_HOW_MANY_OK;
   //int results;
-    int result, ret;
+    float result;
+    int ret;
     TRACE0("[master] ordre how many\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
@@ -243,7 +244,7 @@ void orderHowMany(Data *data)
     order = CM_ANSWER_HOW_MANY_OK ;
     ret = write(data->tubeMC, &order, sizeof(int));
     myassert(ret != -1, "tube masterClient ecriture erreur");
-    ret = write(data->tubeMC, &result, sizeof(int));
+    ret = write(data->tubeMC, &result, sizeof(float));
     myassert(ret != -1, "tube masterClient ecriture erreur");
     // - envoyer les résultats au client
     //END TODO
@@ -255,7 +256,8 @@ void orderHowMany(Data *data)
  ************************************************************************/
 void orderMinimum(Data *data)
 {
-    int order = CM_ANSWER_MINIMUM_OK, result, ret, answer;
+    int order = CM_ANSWER_MINIMUM_OK, ret, answer;
+    float result;
 
     TRACE0("[master] ordre minimum\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
@@ -297,7 +299,8 @@ void orderMinimum(Data *data)
  ************************************************************************/
 void orderMaximum(Data *data)
 {
-    int order = CM_ANSWER_MAXIMUM_OK, ret, result, answer;
+    int order = CM_ANSWER_MAXIMUM_OK, ret, answer;
+    float result;
     TRACE0("[master] ordre maximum\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
@@ -339,7 +342,8 @@ void orderMaximum(Data *data)
 void orderExist(Data *data)
 {
   int order = CM_ANSWER_EXIST_YES;
-  int ret, result, answer;
+  int ret, answer;
+  float result;
     TRACE0("[master] ordre existence\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
@@ -356,7 +360,7 @@ void orderExist(Data *data)
     else {
       ret = write(data->tubeWW[1], &order, sizeof(int));
       myassert(ret != -1, "tube masterClient ecriture erreur");
-      ret = write(data->tubeWW[1], &data->elt, sizeof(int));
+      ret = write(data->tubeWW[1], &data->elt, sizeof(float));
       myassert(ret != -1, "tube masterClient ecriture erreur");
 
       ret = read(data->tubeMW[0], &answer, sizeof(int));        // recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
@@ -391,7 +395,7 @@ void orderExist(Data *data)
     //             . envoyer le résultat au client
     ret = write(data->tubeMC, &order, sizeof(int));
     myassert(ret != -1, "tube masterClient ecriture erreur");
-    ret = write(data->tubeMC, &result, sizeof(int));
+    ret = write(data->tubeMC, &result, sizeof(float));
     myassert(ret != -1, "tube masterClient ecriture erreur");
     //END TODO
 }
@@ -432,9 +436,9 @@ void orderInsert(Data *data)
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     // - recevoir l'élément à insérer en provenance du client 
-    int param = data->elt, order=data->order, ret, answer=0;
-    char strParam[20], strT1[20], strT2[20], strT3[20];
-    snprintf(strParam, sizeof(strParam), "%d", param);
+    float param = data->elt; 
+    int order=data->order, ret, answer=0;
+    
 
     //printf("[MASTER] -> ||%d||",order);
 
@@ -447,7 +451,9 @@ void orderInsert(Data *data)
           fprintf(stderr, "Erreur : Les tubes ne sont pas correctement initialisés.\n");
           exit(EXIT_FAILURE);
         }
-
+        char strParam[20], strT1[20], strT2[20], strT3[20];
+        ret = snprintf(strParam, sizeof(strParam), "%f", param);
+        myassert(ret != -1, "snprintf erreur");
         ret = snprintf(strT1, sizeof(strT1), "%d", data->tubeWW[1]);
         myassert(ret != -1, "snprintf erreur");
         ret = snprintf(strT2, sizeof(strT2), "%d",data->tubeWW[0]);
@@ -470,7 +476,7 @@ void orderInsert(Data *data)
       //printf("le bigworker n'est plus vide ");
       write (data->tubeWW[1], &order, sizeof(int));
       myassert(ret != -1, "tube ecriture erreur");
-      write (data->tubeWW[1], &param, sizeof(int));
+      write (data->tubeWW[1], &param, sizeof(float));
     }
     // Sinon juste envoyer les données avec le tube MASTER-WORKER 
     // (car le processus fils devrait tourner en boucle)
