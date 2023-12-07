@@ -256,6 +256,25 @@ static void sumAction(Data *data)
     TRACE3("    [worker (%d, %d) {%g}] : ordre sum\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
+    int ret;
+    float result = data->elt;
+    int answer = MW_ANSWER_SUM;
+
+    if(data->cardi > 1){
+      result *= data->cardi;
+    }
+
+    printf("\nCARDINALE : %d\n", data->cardi);
+    printf("\nRESULTAT : %g\n", result);
+
+    if(data->FD == NULL && data->FG == NULL){
+      ret = write(data->fdToMaster, &answer, sizeof(int));
+      myassert(ret != -1, "Erreur ecriture tube Worker Master");
+      ret = write(data->fdToMaster, &result, sizeof(float));
+      myassert(ret != -1, "Erreur ecriture tube Worker Master");
+    }
+
+
     //TODO
     // - traiter les cas où les fils n'existent pas
     // - pour chaque fils
@@ -486,7 +505,7 @@ int main(int argc, char * argv[])
     */
     data.FD = NULL;
     data.FG = NULL;
-    data.cardi =0;
+    data.cardi = 1;
 
 
 

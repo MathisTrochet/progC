@@ -405,20 +405,39 @@ void orderExist(Data *data)
  ************************************************************************/
 void orderSum(Data *data)
 {
+    int order = MW_ORDER_SUM, ret, answer;
+    float result = 0;
     TRACE0("[master] ordre somme\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
+
+    if(data->isGrandWorkerEmpty == true){
+      order = CM_ANSWER_SUM_OK;
+      ret = write(data->tubeMC, &order, sizeof(int));
+      myassert(ret != -1, "Erreur ecriture tube Master Client");
+      ret = write(data->tubeMC, &result, sizeof(float));
+      myassert(ret != -1, "Erreur ecriture tube Master Client");
+    }
+    else{
+      ret = write(data->tubeWW[1], &order, sizeof(int));
+      myassert(ret != -1, "Erreur ecriture tube Worker");
+
+      ret = read(data->tubeMW[0], &answer, sizeof(int));        // recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
+      myassert(ret != -1, "tube masterClient lecture erreur");
+      ret = read(data->tubeMW[0], &result, sizeof(float));        // recevoir résultat (la valeur) venant du worker concerné
+      myassert(ret != -1, "tube masterClient lecture erreur");
+
+      ret = write(data->tubeMC, &order, sizeof(int));           // envoyer l'accusé de réception au client (cf. client_master.h)
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+      ret = write(data->tubeMC, &result, sizeof(float));
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+    }
 
     //TODO
     // - traiter le cas ensemble vide (pas de premier worker) : la somme est alors 0
     // - envoyer au premier worker ordre sum (cf. master_worker.h)
-
     // - recevoir accusé de réception venant du premier worker (cf. master_worker.h)
     // - recevoir résultat (la somme) venant du premier worker
     // - envoyer l'accusé de réception au client (cf. client_master.h)
-    int tubeMasterClient = data->tubeMC;
-    int order = CM_ANSWER_SUM_OK;
-    int ret = write(tubeMasterClient, &order, sizeof(int));
-    myassert(ret != -1, "tube ecriture erreur");
     // - envoyer le résultat au client
     //END TODO
 }
@@ -437,7 +456,9 @@ void orderInsert(Data *data)
 
     // - recevoir l'élément à insérer en provenance du client 
     float param = data->elt; 
-    int order=data->order, ret, answer=0;
+    int order=data->order;
+    int ret;
+    int answer=0;
     
 
     //printf("[MASTER] -> ||%d||",order);
