@@ -197,9 +197,7 @@ void orderStop(Data *data)
     int order = CM_ANSWER_STOP_OK;
 
     //int ret = write(fds[1], &order, sizeof(int));
-
-    
-    if (!data->isGrandWorkerEmpty == true){
+    if (data->isGrandWorkerEmpty == true){
       ret = write(data->tubeMC, &order, sizeof(int));
       myassert(ret != -1, "Erreur ecriture tube Master Client");
     }
@@ -208,20 +206,17 @@ void orderStop(Data *data)
       ret = write(data->tubeWW[1], &order, sizeof(int));
       myassert(ret != -1, "Erreur ecriture tube Master Worker");
 
-      ret = read(data->tubeMW[0], &answer, sizeof(int));        // recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
-      myassert(ret != -1, "tube masterClient lecture erreur");
+    //semaphore
+
+      order = CM_ANSWER_STOP_OK;
+      ret = write(data->tubeMC, &order, sizeof(int));
+      myassert(ret != -1, "tube ecriture erreur");
     }
 
-    
-    
     // - traiter le cas ensemble vide (pas de premier worker) check
     // - envoyer au premier worker ordre de fin (cf. master_worker.h) check
     // - attendre sa fin -> (semaphore a mettre)
     // - envoyer l'accusé de réception au client (cf. client_master.h) check
-    int tubeMasterClient = data->tubeMC;
-    
-    ret = write(tubeMasterClient, &order, sizeof(int));
-    myassert(ret != -1, "tube ecriture erreur");
     
     //END TODO
 }
@@ -574,18 +569,29 @@ void orderPrint(Data *data)
 {
     TRACE0("[master] ordre affichage\n");
     myassert(data != NULL, "il faut l'environnement d'exécution");
-
+    int ret, order, answer;
     //TODO
     // - traiter le cas ensemble vide (pas de premier worker)
+    if(data->isGrandWorkerEmpty == true){
+        order = CM_ANSWER_PRINT_OK;
+        ret = write(data->tubeMC, &order, sizeof(int));
+        myassert(ret != -1, "write erreur");
+    }
+    else{
+      order = MW_ORDER_PRINT;
+      ret = write(data->tubeWW[1], &order, sizeof(int));
+      
+      ret = read(data->tubeMW[0], &answer, sizeof(int));        
+      myassert(ret != -1, "tube masterClient lecture erreur");
+
+      ret = write(data->tubeMC, &order, sizeof(int));           // envoyer l'accusé de réception au client (cf. client_master.h)
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+      
+    }
     // - envoyer au premier worker ordre print (cf. master_worker.h)
     // - recevoir accusé de réception venant du premier worker (cf. master_worker.h)
     //   note : ce sont les workers qui font les affichages
     // - envoyer l'accusé de réception au client (cf. client_master.h)
-    int tubeMasterClient = data->tubeMC;
-    int order = CM_ANSWER_PRINT_OK;
-    int ret = write(tubeMasterClient, &order, sizeof(int));
-    myassert(ret != -1, "write erreur");
-    //END TODO
 }
 
 

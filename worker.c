@@ -89,10 +89,11 @@ void stopAction(Data *data)
 {
     TRACE3("    [worker (%d, %d) {%g}] : ordre stop\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
-
+    int ret;
     //TODO
 
     //printf("it worked"); // seulement pour tester
+
 
     // - traiter les cas où les fils n'existent pas
     // - envoyer au worker gauche ordre de fin (cf. master_worker.h)
@@ -144,7 +145,7 @@ static void minimumAction(Data *data)
     // - si le fils gauche n'existe pas (on est sur le minimum)
     //       . envoyer l'accusé de réception au master (cf. master_worker.h)
     //       . envoyer l'élément du worker courant au master
-    if (true){
+    if (data->FG == NULL){
       int answer = MW_ANSWER_MINIMUM;
       ret = write(data->fdToMaster, &answer, sizeof(int)); 
       myassert(ret != -1, "tube masterClient ecriture erreur");
@@ -437,9 +438,29 @@ static void insertAction(Data *data)
  ************************************************************************/
 static void printAction(Data *data)
 {
+  printf("TEST \n");
     TRACE3("    [worker (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
+    int ret, answer;
+    int order = MW_ORDER_PRINT;
+    if(data->FG == NULL){
+      ret = write(data->fdIn, &order, sizeof(int));
+      myassert(ret != -1 , "Erreur Ecriture Worker Worker");
 
+      ret = read(data->fdOut, &answer, sizeof(int));
+      myassert(ret != -1, "Erreur lecture Worker Worker");
+    }
+    printf("[worker] : Element = %g  Cardinalité = %d \n",data->elt, data->cardi);
+    if(data->FD == NULL){
+      ret = write(data->fdIn, &order, sizeof(int));
+      myassert(ret != -1 , "Erreur Ecriture Worker Worker");
+
+      ret = read(data->fdOut, &answer, sizeof(int));
+      myassert(ret != -1, "Erreur lecture Worker Worker");
+    }
+    answer = MW_ANSWER_PRINT;
+    ret = write(data->fdToMaster, &answer, sizeof(int));
+    myassert(ret != -1, "Erreur ecriture tube Worker Master");
     //TODO
     // - si le fils gauche existe
     //       . envoyer ordre print (cf. master_worker.h)
