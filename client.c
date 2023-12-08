@@ -236,7 +236,7 @@ void lauchThreads(const Data *data)
 
     pthread_t threadID[nb_thread];
     ThreadData Datas[nb_thread];
-    pthread_mutex_t thread = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     int sizetab = data->nb;
 
     int min = 0;
@@ -247,7 +247,7 @@ void lauchThreads(const Data *data)
         Datas[i].result = &result;
         Datas[i].elt = data->elt;
         Datas[i].tab = tab;
-        Datas[i].thread = &thread;
+        Datas[i].thread = &mutex;
         if(i == (nb_thread-1)){
             Datas[i].min = Datas[i-1].max + 1;
             Datas[i].max = sizetab;
@@ -301,7 +301,7 @@ void lauchThreads(const Data *data)
         printf("=> PB ! le résultat calculé par les threads est incorrect\n");
 
     //TODO libération des ressources    
-    //pthread_mutex_destroy(&threadID);
+    pthread_mutex_destroy(&mutex);
     free(tab);
 }
 

@@ -625,7 +625,7 @@ void loop(Data *data)
 
         (*data).order = order;
 
-        // on recoit et on stock les parametres dans data 
+        // on recoit et on stock les parametres dans data  
 
         if (order == CM_ORDER_INSERT || order == CM_ORDER_EXIST || order == CM_ORDER_INSERT_MANY || order == CM_ORDER_LOCAL){
           Parametres par;
