@@ -192,16 +192,29 @@ static void parseArgs(int argc, char * argv[], Data *data)
  * Partie multi-thread
  ************************************************************************/
 //TODO Une structure pour les arguments à passer à un thread (aucune variable globale autorisée)
-typedef struct 
-{
-    int *p;
-    int res;
+typedef struct {
+    const float* tab;
+    pthread_mutex_t* thread;
+    int min;
+    int max;
+    float elt;
+    int *result;
 }ThreadData;
 
 //TODO
-void * Create(void * arg){
+void * countElt(void * arg){
     ThreadData *data = (ThreadData *) arg;
-
+    int count = 0;
+    pthread_mutex_lock(data->thread);
+    
+    for(int i=data->min; i <= data->max; i++){
+        if(data->tab[i] == data->elt){
+            count++;
+        }
+    }
+    *(data->result) += count;
+    pthread_mutex_unlock(data->thread);
+    pthread_exit(NULL);
     return NULL;
 }
 // Code commun à tous les threads
@@ -221,19 +234,37 @@ void lauchThreads(const Data *data)
     float * tab = ut_generateTab(data->nb, data->min, data->max, 0);
     int nb_thread = data->nbThreads;
 
-
     pthread_t threadID[nb_thread];
     ThreadData Datas[nb_thread];
+    pthread_mutex_t thread = PTHREAD_MUTEX_INITIALIZER;
+    int sizetab = data->nb;
+
+    int min = 0;
+    int max = (sizetab / nb_thread) -1;
 
     for (int i = 0; i < nb_thread; i++)
     {
-        Datas[i].res = &result;
+        Datas[i].result = &result;
+        Datas[i].elt = data->elt;
+        Datas[i].tab = tab;
+        Datas[i].thread = &thread;
+        if(i == (nb_thread-1)){
+            Datas[i].min = Datas[i-1].max + 1;
+            Datas[i].max = sizetab;
+        }
+        else{
+            Datas[i].min = min;
+            Datas[i].max = max;
+
+            min = max +1;
+            max = min + (sizetab / nb_thread) -1;
+        }
     }
 
 
     //TODO lancement des threads
     for(int i=0; i < nb_thread; i++){
-        int ret = pthread_create(threadID[i], NULL, Create, &(Datas[i])); //!!!!!!!!!!!
+        int ret = pthread_create(&threadID[i], NULL, countElt, &(Datas[i])); //!!!!!!!!!!!
         myassert(ret == 0, "Erreur : lancement des threads");
     }
     
@@ -270,6 +301,8 @@ void lauchThreads(const Data *data)
         printf("=> PB ! le résultat calculé par les threads est incorrect\n");
 
     //TODO libération des ressources    
+    //pthread_mutex_destroy(&threadID);
+    free(tab);
 }
 
 
