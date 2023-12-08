@@ -31,8 +31,33 @@
 //TODO
 // Vous pouvez mettre ici des informations soit communes au client et au
 // master, soit liées aux deux :
+
+#include <pthread.h> // rajouté
+
 // . structures de données
+
+
+typedef struct {
+
+    int order;     // ordre de l'utilisateur (cf. CM_ORDER_* dans client_master.h)
+    float elt;     // pour CM_ORDER_EXIST, CM_ORDER_INSERT, CM_ORDER_LOCAL
+    int nb;        // pour CM_ORDER_INSERT_MANY, CM_ORDER_LOCAL
+    float min;     // pour CM_ORDER_INSERT_MANY, CM_ORDER_LOCAL
+    float max;     // pour CM_ORDER_INSERT_MANY, CM_ORDER_LOCAL
+    int nbThreads; // pour CM_ORDER_LOCAL
+
+} Parametres;
+
+
+
 // . création/libération/initialisation de ressources (sémaphores, tubes, ...)
+#define MA_CLE1 23  
+#define MA_CLE2 7  
+
+#define MON_FICHIER "client_master.h"
+
+
+
 // . communications
 //END TODO
 

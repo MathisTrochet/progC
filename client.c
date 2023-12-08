@@ -16,6 +16,12 @@
 
 #include "client_master.h"
 
+#include <fcntl.h>//  rajouté
+#include <pthread.h> // rajouté
+#include <sys/ipc.h> // ajouté 
+#include <sys/sem.h> // ajouté 
+
+
 
 /************************************************************************
  * chaines possibles pour le premier paramètre de la ligne de commande
@@ -36,10 +42,14 @@
  * structure stockant les paramètres du client
  * - les infos pour communiquer avec le master
  * - les infos pour effectuer le travail (cf. ligne de commande)
- *   (note : une union permettrait d'optimiser la place mémoire)
+ *   (note : une union permettrait d'optimiser la place mémoire) 
  ************************************************************************/
 typedef struct {
     // communication avec le master
+    int tubeCM;
+    int tubeMC;
+    int orderReturn;
+    int sem2;
     //TODO
     // infos pour le travail à faire (récupérées sur la ligne de commande)
     int order;     // ordre de l'utilisateur (cf. CM_ORDER_* dans client_master.h)
@@ -182,8 +192,18 @@ static void parseArgs(int argc, char * argv[], Data *data)
  * Partie multi-thread
  ************************************************************************/
 //TODO Une structure pour les arguments à passer à un thread (aucune variable globale autorisée)
+typedef struct 
+{
+    int *p;
+    int res;
+}ThreadData;
 
 //TODO
+void * Create(void * arg){
+    ThreadData *data = (ThreadData *) arg;
+
+    return NULL;
+}
 // Code commun à tous les threads
 // Un thread s'occupe d'une portion du tableau et compte en interne le nombre de fois
 // où l'élément recherché est présent dans cette portion. On ajoute alors,
@@ -192,15 +212,36 @@ static void parseArgs(int argc, char * argv[], Data *data)
 // A vous de voir les paramètres nécessaires  (aucune variable globale autorisée)
 //END TODO
 
+
+
 void lauchThreads(const Data *data)
 {
     //TODO déclarations nécessaires : mutex, ...
     int result = 0;
     float * tab = ut_generateTab(data->nb, data->min, data->max, 0);
+    int nb_thread = data->nbThreads;
+
+
+    pthread_t threadID[nb_thread];
+    ThreadData Datas[nb_thread];
+
+    for (int i = 0; i < nb_thread; i++)
+    {
+        Datas[i].res = &result;
+    }
+
 
     //TODO lancement des threads
-
+    for(int i=0; i < nb_thread; i++){
+        int ret = pthread_create(threadID[i], NULL, Create, &(Datas[i])); //!!!!!!!!!!!
+        myassert(ret == 0, "Erreur : lancement des threads");
+    }
+    
     //TODO attente de la fin des threads
+    for(int i=0; i < nb_thread; i++){
+        int ret = pthread_join(threadID[i], NULL); 
+        myassert(ret == 0, "Erreur : attente de la fin des threads");
+    }
 
     // résultat (result a été rempli par les threads)
     // affichage du tableau si pas trop gros
@@ -237,11 +278,42 @@ void lauchThreads(const Data *data)
  ************************************************************************/
 // envoi des données au master
 void sendData(const Data *data)
-{
-    myassert(data != NULL, "pb !");   //TODO à enlever (présent pour éviter le warning)
+{    
 
-    //TODO
+    int tubeClientMaster = data->tubeCM;
     // - envoi de l'ordre au master (cf. CM_ORDER_* dans client_master.h)
+    int order = data->order;
+    int ret = write(tubeClientMaster, &order, sizeof(int));
+    myassert(ret!=1, "write erreur");
+
+
+    if (order == CM_ORDER_INSERT || order == CM_ORDER_EXIST){
+        Parametres par;
+        par.elt = data->elt;
+        write(tubeClientMaster, &par, sizeof(par));
+    }
+    if (order == CM_ORDER_INSERT_MANY){
+        Parametres par;
+        par.nb = data->nb;
+        par.min = data->min;
+        par.max = data->max;
+        write(tubeClientMaster, &par, sizeof(par));
+        
+    }
+    /*
+    else if (order == CM_ORDER_LOCAL){
+        Parametres par;
+        par.elt = data->elt;
+        par.nb = data->nb;
+        par.min = data->min;
+        par.max = data->max;
+        par.nbThreads = data->nbThreads;
+        write(tubeClientMaster, &par, sizeof(par));
+    }
+    */
+
+
+    
     // - envoi des paramètres supplémentaires au master (pour CM_ORDER_EXIST,
     //   CM_ORDER_INSERT et CM_ORDER_INSERT_MANY)
     //END TODO
@@ -250,13 +322,28 @@ void sendData(const Data *data)
 // attente de la réponse du master
 void receiveAnswer(const Data *data)
 {
-    myassert(data != NULL, "pb !");   //TODO à enlever (présent pour éviter le warning)
+
+    int tubeMasterClient = data->tubeMC;
 
     //TODO
     // - récupération de l'accusé de réception du master (cf. CM_ANSWER_* dans client_master.h)
+    int order;
+    float param;
+    int ret = read(tubeMasterClient, &order, sizeof(int));
+    myassert(ret!=1, "read erreur");
+
+    if (order == CM_ANSWER_HOW_MANY_OK || order == CM_ANSWER_MINIMUM_OK || order == CM_ANSWER_MAXIMUM_OK  || order == CM_ANSWER_SUM_OK){
+        int ret = read(tubeMasterClient, &param, sizeof(float));
+        myassert(ret!=1, "read erreur");
+        printf("[CLIENT] résultat : %g\n", param);
+    } 
+
+    printf("[CLIENT] accusé de reception : %d \n", order);
+
     // - selon l'ordre et l'accusé de réception :
     //      . récupération de données supplémentaires du master si nécessaire
-    // - affichage du résultat
+    // - affichage du résultat  
+    
     //END TODO
 }
 
@@ -267,17 +354,47 @@ void receiveAnswer(const Data *data)
 int main(int argc, char * argv[])
 {
     Data data;
+    //DataMiddle dataMiddle;
     parseArgs(argc, argv, &data);
 
     if (data.order == CM_ORDER_LOCAL)
         lauchThreads(&data);
     else
     {
+
+        int ret, sem1, sem2, key1, key2;
+
+        key1 = ftok(MON_FICHIER, MA_CLE1);
+        sem1 = semget(key1, 1, 0); // on recupere le semaphore pour la section critique (sem1)
+
+        key2 = ftok(MON_FICHIER, MA_CLE2);
+        sem2 = semget(key2, 1, 0); // on recupere le semaphore pour bloquer la loop
+
+        data.sem2 = sem2;
+
         //TODO
-        // - entrer en section critique :
+        // - entrer en section critique 
+
+        struct sembuf operation = {0, -1, 0};
+        ret = semop(sem1, &operation, 1);
+        myassert(ret!=1, "read erreur");
+
+        
         //       . pour empêcher que 2 clients communiquent simultanément
         //       . le mutex est déjà créé par le master
         // - ouvrir les tubes nommés (ils sont déjà créés par le master)
+
+
+        int tubeClientMaster = open("tubeCM", O_WRONLY);
+        myassert(ret!=1, "open erreur");
+
+
+        int tubeMasterClient = open("tubeMC", O_RDONLY);
+        myassert(ret!=1, "open erreur");
+
+        data.tubeCM = tubeClientMaster;
+        data.tubeMC = tubeMasterClient;
+
         //       . les ouvertures sont bloquantes, il faut s'assurer que
         //         le master ouvre les tubes dans le même ordre
         //END TODO
@@ -285,11 +402,27 @@ int main(int argc, char * argv[])
         sendData(&data);
         receiveAnswer(&data);
 
-        //TODO
-        // - sortir de la section critique
+        //TODO        
+
         // - libérer les ressources (fermeture des tubes, ...)
+        ret = close(tubeClientMaster);
+        myassert(ret!=1, "close erreur");
+        ret = close(tubeMasterClient);      //
+        myassert(ret!=1, "close erreur");
+        
         // - débloquer le master grâce à un second sémaphore (cf. ci-dessous)
-        //
+
+        struct sembuf operation2 = {0, +1, 0};
+        ret = semop(sem2, &operation2, 1);
+        myassert(ret!=1, "operation2 erreur");
+
+        // - sortir de la section critique
+
+        struct sembuf operation1 = {0, +1, 0};
+        ret = semop(sem1, &operation1, 1);
+                myassert(ret!=1, "operation1 erreur");
+
+        
         // Une fois que le master a envoyé la réponse au client, il se bloque
         // sur un sémaphore ; le dernier point permet donc au master de continuer
         //

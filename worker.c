@@ -21,11 +21,21 @@
 typedef struct
 {
     // données internes (valeur de l'élément, cardinalité)
+    float elt;
+    int order;
+    int cardi;
     // communication avec le père (2 tubes) et avec le master (1 tube en écriture)
+    int fdIn;
+    int fdOut;
+    int fdToMaster; 
+
+    int sem3;
+
     // communication avec le fils gauche s'il existe (2 tubes)
+    int *FG;
     // communication avec le fils droit s'il existe (2 tubes)
+    int *FD;
     //TODO
-    int dummy;  //TODO à enlever (présent pour éviter le warning)
 } Data;
 
 
@@ -44,6 +54,11 @@ static void usage(const char *exeName, const char *message)
     exit(EXIT_FAILURE);
 }
 
+void fermetureTubes(Data *data){
+   int ret = close(data->fdToMaster);
+  myassert(ret != -1, "close tube failure"); 
+}
+
 static void parseArgs(int argc, char * argv[], Data *data)
 {
     myassert(data != NULL, "il faut l'environnement d'exécution");
@@ -58,7 +73,11 @@ static void parseArgs(int argc, char * argv[], Data *data)
     int fdIn = strtol(argv[2], NULL, 10);
     int fdOut = strtol(argv[3], NULL, 10);
     int fdToMaster = strtol(argv[4], NULL, 10);
-    printf("%g %d %d %d\n", elt, fdIn, fdOut, fdToMaster);
+    //printf("%g %d %d %d\n", elt, fdIn, fdOut, fdToMaster);
+    (*data).elt = elt;
+    (*data).fdIn = fdIn;
+    (*data).fdOut = fdOut;
+    (*data).fdToMaster = fdToMaster;
     //END TODO
 }
 
@@ -68,10 +87,13 @@ static void parseArgs(int argc, char * argv[], Data *data)
  ************************************************************************/
 void stopAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre stop\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre stop\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
+
+    //printf("it worked"); // seulement pour tester
+
     // - traiter les cas où les fils n'existent pas
     // - envoyer au worker gauche ordre de fin (cf. master_worker.h)
     // - envoyer au worker droit ordre de fin (cf. master_worker.h)
@@ -85,12 +107,13 @@ void stopAction(Data *data)
  ************************************************************************/
 static void howManyAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre how many\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre how many\n", getpid(), getppid(),  data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
     // - traiter les cas où les fils n'existent pas
     // - pour chaque fils
+    
     //       . envoyer ordre howmany (cf. master_worker.h)
     //       . recevoir accusé de réception (cf. master_worker.h)
     //       . recevoir deux résultats (nb elts, nb elts distincts) venant du fils
@@ -105,13 +128,27 @@ static void howManyAction(Data *data)
  ************************************************************************/
 static void minimumAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre minimum\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+  int ret ;
+    TRACE3("    [worker (%d, %d) {%g}] : ordre minimum\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
     // - si le fils gauche n'existe pas (on est sur le minimum)
     //       . envoyer l'accusé de réception au master (cf. master_worker.h)
     //       . envoyer l'élément du worker courant au master
+    if (true){
+      int answer = MW_ANSWER_MINIMUM;
+      ret = write(data->fdToMaster, &answer, sizeof(int)); 
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+      ret = write(data->fdToMaster, &(data->elt), sizeof(float));
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+    }
+    else {
+      int answer = MW_ORDER_MINIMUM;
+      ret = write(data->fdIn, &answer, sizeof(int)); 
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+    }
+    
     // - sinon
     //       . envoyer au worker gauche ordre minimum (cf. master_worker.h)
     //       . note : c'est un des descendants qui enverra le résultat au master
@@ -124,11 +161,30 @@ static void minimumAction(Data *data)
  ************************************************************************/
 static void maximumAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre maximum\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+  int ret ;
+    TRACE3("    [worker (%d, %d) {%g}] : ordre maximum\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
-    // cf. explications pour le minimum
+    // - si le fils droit n'existe pas (on est sur le maximum)
+    //       . envoyer l'accusé de réception au master (cf. master_worker.h)
+    //       . envoyer l'élément du worker courant au master
+    if (data->FD == NULL){
+      int answer = MW_ANSWER_MAXIMUM;
+      ret = write(data->fdToMaster, &answer, sizeof(int)); 
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+      ret = write(data->fdToMaster, &(data->elt), sizeof(float));
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+    }
+    else {  
+      int answer = MW_ORDER_MAXIMUM;
+      ret = write(data->fdIn, &answer, sizeof(int)); 
+      myassert(ret != -1, "tube masterClient ecriture erreur");
+    }
+    
+    // - sinon
+    //       . envoyer au worker droit ordre minimum (cf. master_worker.h)
+    //       . note : c'est un des descendants qui enverra le résultat au master
     //END TODO
 }
 
@@ -138,11 +194,41 @@ static void maximumAction(Data *data)
  ************************************************************************/
 static void existAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre exist\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre exist\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
     // - recevoir l'élément à tester en provenance du père
+    int answer;
+    int order = data->order;
+    float param;
+    read(data->fdOut, &param, sizeof(float));
+
+    if (param == data->elt){
+      answer = MW_ANSWER_EXIST_YES;
+      write(data->fdToMaster, &answer, sizeof(int));
+      write(data->fdToMaster, &data->cardi, sizeof(int));
+    }
+    else {
+      if (param < data->elt && data->FG == NULL){
+        //envoyer au master echec
+      }
+      else {
+        if (param > data->elt && data->FG == NULL){ 
+          //envoyer au master echec
+        }
+        else {
+          if (param < data->elt ){
+            //envoyer au master et autre 
+          }
+          else {
+            if (param > data->elt ){
+              //envoyer au master et autre
+            }
+        }
+        }
+      }
+    }
     // - si élément courant == élément à tester
     //       . envoyer au master l'accusé de réception de réussite (cf. master_worker.h)
     //       . envoyer cardinalité de l'élément courant au master
@@ -167,8 +253,27 @@ static void existAction(Data *data)
  ************************************************************************/
 static void sumAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre sum\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre sum\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
+
+    int ret;
+    float result = data->elt;
+    int answer = MW_ANSWER_SUM;
+
+    if(data->cardi > 1){
+      result *= data->cardi;
+    }
+
+    printf("\nCARDINALE : %d\n", data->cardi);
+    printf("\nRESULTAT : %g\n", result);
+
+    if(data->FD == NULL && data->FG == NULL){
+      ret = write(data->fdToMaster, &answer, sizeof(int));
+      myassert(ret != -1, "Erreur ecriture tube Worker Master");
+      ret = write(data->fdToMaster, &result, sizeof(float));
+      myassert(ret != -1, "Erreur ecriture tube Worker Master");
+    }
+
 
     //TODO
     // - traiter les cas où les fils n'existent pas
@@ -187,10 +292,121 @@ static void sumAction(Data *data)
  ************************************************************************/
 static void insertAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre insert\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre insert\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
+    //printf("\nje suis là\n");
+
+    int order = data->order;
+    float param;
+    int ret;
+    ret = read(data->fdOut, &param, sizeof(float)); // envoyer accusé de reception 
+    myassert(ret != -1, "read erreur");    
     //TODO
+
+    printf("[WORKER] %d-> param a tester: %g\n", getpid(), param);
+    printf("[WORKER] %d-> element: %g\n", getpid(), data->elt);
+    printf("[WORKER] %d-> FG: %d\n", getpid(), data->FG[0]); 
+    printf("[WORKER] %d-> FD: %d\n", getpid(), data->FD[1]); 
+            
+    
+    if (param == data->elt){
+      printf("[WORKER] CECI EST UN TEST");
+      order = MW_ANSWER_INSERT;
+      data->cardi = data->cardi + 1;
+      printf("[WORKER] %d-> cardinal: %d\n", getpid(), data->cardi); 
+      
+
+      //printf("CARDINALITE AUGMENTE : %d ", data->cardi);
+      write(data->fdToMaster, &order, sizeof(int));
+      myassert(ret != -1, "read erreur");
+    }
+    else {
+      if (param < data->elt && data->FG == NULL){
+            char strParam[20], strT1[20], strT2[20], strT3[20];
+
+            int tubeFG[2];
+            ret = pipe(tubeFG);
+            (*data).FG = tubeFG;
+
+            myassert(ret != -1, "tube anonyme erreur");
+            pid_t pid = fork();                                            /* --------creation processus pour creer le worker --------*/
+            myassert(pid != -1, "erreur pid");
+            if (pid == 0){
+
+              
+
+              ret = snprintf(strParam, sizeof(strParam), "%f", param);
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT1, sizeof(strT1), "%d", tubeFG[1]);
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT2, sizeof(strT2), "%d", tubeFG[0]);
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT3, sizeof(strT3), "%d", data->fdToMaster);
+              myassert(ret != -1, "snprintf erreur");
+              //printf("[MASTER] -> ||%d||",order);
+
+              ret = execl("./worker", "worker", strParam,  strT1, strT2, strT3, (char *)NULL);
+              myassert(ret != -1, "erreur execl");
+                  
+              exit(EXIT_FAILURE);
+              
+            }
+            
+
+      }
+      else{
+        if (param > data->elt && data->FD == NULL){
+            char strParam[20], strT1[20], strT2[20], strT3[20];
+
+            int tubeFD[2];
+            ret = pipe(tubeFD);
+            (*data).FD = tubeFD;
+
+            myassert(ret != -1, "tube anonyme erreur");
+            pid_t pid = fork();                                            /* --------creation processus pour creer le worker --------*/
+            myassert(pid != 1, "erreur pid");
+            if (pid == 0){
+        
+              
+
+              ret = snprintf(strParam, sizeof(strParam), "%f", param);
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT1, sizeof(strT1), "%d", tubeFD[1] );
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT2, sizeof(strT2), "%d", tubeFD[0]);
+              myassert(ret != -1, "snprintf erreur");
+              ret = snprintf(strT3, sizeof(strT3), "%d", data->fdToMaster);
+              myassert(ret != -1, "snprintf erreur");
+              //printf("[MASTER] -> ||%d||",order);
+
+              ret = execl("./worker", "worker", strParam,  strT1, strT2, strT3, (char *)NULL);
+              myassert(ret != -1, "erreur execl");
+                  
+              exit(EXIT_FAILURE);
+              
+            }
+            
+
+      }
+      else{
+        if (param < data->elt){
+          write(data->FG[1], &order, sizeof(int));
+          myassert(ret != -1, "write erreur");
+          write(data->FG[1], &param, sizeof(float));
+          myassert(ret != -1, "write erreur");
+        }
+        else {
+          write(data->FD[1], &order, sizeof(int));
+          myassert(ret != -1, "write erreur");
+          write(data->FD[1], &param, sizeof(float));
+          myassert(ret != -1, "write erreur");
+        }
+
+      }   
+      }
+      
+    }
     // - recevoir l'élément à insérer en provenance du père
     // - si élément courant == élément à tester
     //       . incrémenter la cardinalité courante
@@ -218,7 +434,7 @@ static void insertAction(Data *data)
  ************************************************************************/
 static void printAction(Data *data)
 {
-    TRACE3("    [worker (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
@@ -239,12 +455,21 @@ static void printAction(Data *data)
  ************************************************************************/
 void loop(Data *data)
 {
+    int ret;
     bool end = false;
 
-    while (! end)
+    while (!end)
     {
-        int order = MW_ORDER_STOP;   //TODO pour que ça ne boucle pas, mais recevoir l'ordre du père
-        switch(order)
+        TRACE3("    [LOOP - je m'apprete a lire (%d, %d) {%g}] : ordre print\n", getpid(), getppid(), data->elt);
+        int ret = read(data->fdOut , &data->order, sizeof(int));
+        myassert(ret!=-1, "read marche pas");
+        //printf("\n[WORKER] order-> ||%d|| - ", data->order);
+
+
+        
+
+        //int order = MW_ORDER_STOP;   //TODO pour que ça ne boucle pas, mais recevoir l'ordre du père 
+        switch(data->order)
         {
           case MW_ORDER_STOP:
             stopAction(data);
@@ -275,11 +500,14 @@ void loop(Data *data)
             myassert(false, "ordre inconnu");
             exit(EXIT_FAILURE);
             break;
-        }
+        }       
 
-        TRACE3("    [worker (%d, %d) {%g}] : fin ordre\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+        TRACE3("    [worker (%d, %d) {%g}] : fin ordre\n", getpid(), getppid(), data->elt);
     }
 }
+
+
+
 
 
 /************************************************************************
@@ -289,16 +517,35 @@ void loop(Data *data)
 int main(int argc, char * argv[])
 {
     Data data;
+    int ret;
     parseArgs(argc, argv, &data);
-    TRACE3("    [worker (%d, %d) {%g}] : début worker\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : début worker\n", getpid(), getppid(), data.elt);
+
+    //TRACE3("||(%d, %d) {%d}||\n", answer, answer, answer);
+/*
+    key3 = ftok(MON_FICHIER2, MA_CLE3);
+    sem3 = semget(key3, 1, 0); // on recupere le semaphore pour bloquer la loop
+    data.sem3 = sem3;
+    */
+    data.FD = NULL;
+    data.FG = NULL;
+    data.cardi = 1;
+
+
 
     //TODO envoyer au master l'accusé de réception d'insertion (cf. master_worker.h)
+    int answer = MW_ANSWER_INSERT;
+    ret = write(data.fdToMaster, &answer, sizeof(int));
+    myassert(ret != -1, "write pas bon");
+
     //TODO note : en effet si je suis créé c'est qu'on vient d'insérer un élément : moi
+
 
     loop(&data);
 
     //TODO fermer les tubes
+    fermetureTubes(&data);
 
-    TRACE3("    [worker (%d, %d) {%g}] : fin worker\n", getpid(), getppid(), 3.14 /*TODO élément*/);
+    TRACE3("    [worker (%d, %d) {%g}] : fin worker\n", getpid(), getppid(), data.elt);
     return EXIT_SUCCESS;
 }
