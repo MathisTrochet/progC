@@ -459,7 +459,7 @@ int main(int argc, char * argv[])
 
         struct sembuf operation1 = {0, +1, 0};
         ret = semop(sem1, &operation1, 1);
-                myassert(ret!=1, "operation1 erreur");
+        myassert(ret!=1, "operation1 erreur");
 
         
         // Une fois que le master a envoyé la réponse au client, il se bloque

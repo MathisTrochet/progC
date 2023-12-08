@@ -151,30 +151,30 @@ void creation_TubeAnonyme(Data *data){
 
 void creation_TubeNomme(Data *data){
   int tubeClientMaster = mkfifo("tubeCM", 0644); 
-    myassert(tubeClientMaster != 1, "tube CM erreur creation");
+  myassert(tubeClientMaster != 1, "tube CM erreur creation");
 
   int tubeMasterClient = mkfifo("tubeMC", 0644); 
-    myassert(tubeMasterClient != 1, "tube MC erreur creation");
+  myassert(tubeMasterClient != 1, "tube MC erreur creation");
 
-    (*data).tubeCM = tubeClientMaster;
-    (*data).tubeMC = tubeMasterClient;
+  (*data).tubeCM = tubeClientMaster;
+  (*data).tubeMC = tubeMasterClient;
 }
 
 void destruction_TubeNomme(){
   int ret;
-    ret = unlink("tubeCM");
-    myassert(ret != 1, "destruction tubeCM nomme erreur");
-    ret = unlink("tubeMC");
-    myassert(ret != 1, "destruction tubeMC nomme erreur");
+  ret = unlink("tubeCM");
+  myassert(ret != 1, "destruction tubeCM nomme erreur");
+  ret = unlink("tubeMC");
+  myassert(ret != 1, "destruction tubeMC nomme erreur");
 }
 
 void destruction_Semaphore(Data *data){
   int ret;
   int sem1 = data->sem1, sem2 = data->sem2, sem3 = data->sem3;
-    ret = semctl(sem1, -1, IPC_RMID);
-    myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
-    ret = semctl(sem2, -1, IPC_RMID);
-    myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
+  ret = semctl(sem1, -1, IPC_RMID);
+  myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
+  ret = semctl(sem2, -1, IPC_RMID);
+  myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
     /*
     ret = semctl(sem3, -1, IPC_RMID);
     myassert(ret != -1, "erreur semctl pour suppression du sémaphore");
@@ -192,15 +192,24 @@ void orderStop(Data *data)
     myassert(data != NULL, "il faut l'environnement d'exécution");
 
     //TODO
-    int ret;
+    int ret, answer;
 
     int order = CM_ANSWER_STOP_OK;
 
     //int ret = write(fds[1], &order, sizeof(int));
 
     
-    if (!data->isGrandWorkerEmpty){
-      write(data->tubeWW[1], &order, sizeof(int));
+    if (!data->isGrandWorkerEmpty == true){
+      ret = write(data->tubeMC, &order, sizeof(int));
+      myassert(ret != -1, "Erreur ecriture tube Master Client");
+    }
+    else {
+      order = MW_ORDER_STOP;
+      ret = write(data->tubeWW[1], &order, sizeof(int));
+      myassert(ret != -1, "Erreur ecriture tube Master Worker");
+
+      ret = read(data->tubeMW[0], &answer, sizeof(int));        // recevoir accusé de réception venant du worker concerné (cf. master_worker.h)
+      myassert(ret != -1, "tube masterClient lecture erreur");
     }
 
     
